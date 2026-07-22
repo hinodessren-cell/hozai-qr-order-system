@@ -298,6 +298,8 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("カメラをQRコードへ向けてください");
+  const [cameraFailed, setCameraFailed] = useState(false);
+  const [retryCamera, setRetryCamera] = useState(0);
 
   const resolve = useCallback((raw: string) => {
     let id = raw.trim();
@@ -311,6 +313,9 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
     const start = async () => {
       if (!videoRef.current) return;
       try {
+        setCameraFailed(false);
+        videoRef.current.setAttribute("webkit-playsinline", "true");
+        if (!navigator.mediaDevices?.getUserMedia || !(await QrScannerEngine.hasCamera())) throw new Error("camera-unavailable");
         scanner = new QrScannerEngine(
           videoRef.current,
           (result) => resolve(result.data),
@@ -318,13 +323,15 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
         );
         await scanner.start();
         setMessage("QRコードを枠内に合わせてください");
-      } catch {
-        setMessage("カメラを開始できません。許可を確認するか、QR画像を選択してください。");
+      } catch (error) {
+        setCameraFailed(true);
+        const denied = error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "PermissionDeniedError");
+        setMessage(denied ? "カメラが許可されていません。iPhoneの設定でSafari（またはこのアプリ）のカメラを許可してください。" : "ライブカメラを開始できません。下の「カメラで撮影して読み取る」をお使いください。");
       }
     };
     void start();
     return () => { scanner?.stop(); scanner?.destroy(); };
-  }, [resolve]);
+  }, [resolve, retryCamera]);
 
   const scanFile = async (file?: File) => {
     if (!file) return;
@@ -336,7 +343,7 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
     }
   };
 
-  return <div className="modalBackdrop" onClick={close}><section className="scanModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">QR SCANNER</p><h2>QR看板を読み取る</h2><div className="camera"><video ref={videoRef} muted playsInline/><span>{message}</span></div><label className="qrFileButton">QR画像を選択<input type="file" accept="image/*" capture="environment" onChange={(event) => void scanFile(event.target.files?.[0])} /></label><label>または管理番号を入力<input value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") resolve(code); }} placeholder="例：HZ-2CE1D46BD51220" /></label><button className="primary wide" onClick={() => resolve(code)} disabled={!code.trim()}>品目を開く</button></section></div>;
+  return <div className="modalBackdrop" onClick={close}><section className="scanModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">QR SCANNER</p><h2>QR看板を読み取る</h2><div className="camera"><video ref={videoRef} muted playsInline/><span>{message}</span></div>{cameraFailed && <button className="cameraRetry" onClick={() => setRetryCamera((value) => value + 1)}>ライブカメラを再試行</button>}<label className="qrFileButton cameraCapture">カメラで撮影して読み取る<input type="file" accept="image/*" capture="environment" onChange={(event) => void scanFile(event.target.files?.[0])} /></label><p className="iosCameraHelp">iPhoneで許可が出ない場合：設定 → Safari（または使用中のアプリ）→ カメラ → 許可。その後この画面で再試行してください。</p><label>または管理番号を入力<input value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") resolve(code); }} placeholder="例：HZ-2CE1D46BD51220" /></label><button className="primary wide" onClick={() => resolve(code)} disabled={!code.trim()}>品目を開く</button></section></div>;
 }
 
 function OrderModal({ item, history, close, submit }: { item: Item; history: Order[]; close: () => void; submit: (item: Item, quantity: number, purchaser: string) => void }) {
