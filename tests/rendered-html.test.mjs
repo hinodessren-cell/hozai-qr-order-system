@@ -29,10 +29,11 @@ test("contains the material ordering workflow", async () => {
 });
 
 test("ships the migrated database and QR assets", async () => {
-  const [schema, initialMigration, legacyMigration, qrFiles] = await Promise.all([
+  const [schema, initialMigration, legacyMigration, qrGenerator, qrFiles] = await Promise.all([
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("drizzle/0000_initial.sql", root), "utf8"),
     readFile(new URL("drizzle/0001_legacy_data.sql", root), "utf8"),
+    readFile(new URL("scripts/generate_qr_assets.py", root), "utf8"),
     readdir(new URL("public/qr/", root)),
   ]);
 
@@ -41,5 +42,7 @@ test("ships the migrated database and QR assets", async () => {
   assert.match(schema, /sqliteTable\("app_settings"/);
   assert.match(initialMigration, /CREATE TABLE [`"]items[`"]/i);
   assert.match(legacyMigration, /INSERT OR REPLACE INTO items/i);
+  assert.match(qrGenerator, /QR_BASE_URL/);
+  assert.match(qrGenerator, /\?item=/);
   assert.equal(qrFiles.filter((name) => name.endsWith(".svg")).length, 1512);
 });
