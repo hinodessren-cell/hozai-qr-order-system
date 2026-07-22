@@ -23,6 +23,8 @@ test("contains the material ordering workflow", async () => {
   assert.match(page, /QrScannerEngine/);
   assert.match(page, /カメラで撮影して読み取る/);
   assert.match(page, /ライブカメラを再試行/);
+  assert.match(page, /iphoneScanner/);
+  assert.match(page, /管理番号を手入力する/);
   assert.match(page, /push-subscribe/);
   assert.match(page, /発注者名（必須）/);
   assert.match(page, /前回までの発注履歴/);
@@ -39,6 +41,8 @@ test("contains the material ordering workflow", async () => {
   assert.match(styles, /@media print[\s\S]*\.inlineBoardFields/);
   assert.match(styles, /min-width:701px[\s\S]*max-width:1100px/);
   assert.match(styles, /max-width:700px[\s\S]*scroll-snap-type/);
+  assert.match(styles, /\.iphoneScanner/);
+  assert.match(styles, /height:100dvh/);
   assert.match(page, /発注取消/);
   assert.match(route, /payload\.action === "order"/);
   assert.match(route, /payload\.action === "status"/);

@@ -348,7 +348,17 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
     }
   };
 
-  return <div className="modalBackdrop" onClick={close}><section className="scanModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">QR SCANNER</p><h2>QR看板を読み取る</h2><div className="camera"><video ref={videoRef} muted playsInline/><span>{message}</span></div>{cameraFailed && <button className="cameraRetry" onClick={() => setRetryCamera((value) => value + 1)}>ライブカメラを再試行</button>}<label className="qrFileButton cameraCapture">カメラで撮影して読み取る<input type="file" accept="image/*" capture="environment" onChange={(event) => void scanFile(event.target.files?.[0])} /></label><p className="iosCameraHelp">iPhoneで許可が出ない場合：設定 → Safari（または使用中のアプリ）→ カメラ → 許可。その後この画面で再試行してください。</p><label>または管理番号を入力<input value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") resolve(code); }} placeholder="例：HZ-2CE1D46BD51220" /></label><button className="primary wide" onClick={() => resolve(code)} disabled={!code.trim()}>品目を開く</button></section></div>;
+  return <div className="modalBackdrop scannerBackdrop" onClick={close}><section className="scanModal iphoneScanner" onClick={(event) => event.stopPropagation()}>
+    <header className="scannerHeader"><div><p>HINODE QR SCANNER</p><h2>QR看板を読み取る</h2></div><button className="scannerClose" onClick={close} aria-label="QR読み取りを閉じる">×</button></header>
+    <div className={`camera scannerViewport ${cameraFailed ? "cameraError" : ""}`}><video ref={videoRef} muted playsInline/><div className="scannerShade"/><div className="scanTarget"><i/><i/><i/><i/></div><span className="scannerMessage">{message}</span></div>
+    <section className="scannerControls">
+      <p className="scannerTip">看板のQRコードを四角い枠の中に合わせてください</p>
+      {cameraFailed && <button className="cameraRetry" onClick={() => setRetryCamera((value) => value + 1)}>↻ ライブカメラを再試行</button>}
+      <label className="qrFileButton cameraCapture"><span className="captureIcon">◎</span><span><b>カメラで撮影して読み取る</b><small>iPhone標準カメラを使用</small></span><input type="file" accept="image/*" capture="environment" onChange={(event) => void scanFile(event.target.files?.[0])} /></label>
+      {cameraFailed && <p className="iosCameraHelp">設定 → Safari（または使用中のアプリ）→ カメラ → 許可後、「再試行」を押してください。</p>}
+      <details className="manualScan"><summary>管理番号を手入力する</summary><div><input value={code} onChange={(event) => setCode(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") resolve(code); }} placeholder="例：HZ-2CE1D46BD51220" inputMode="text" autoCapitalize="characters"/><button className="primary" onClick={() => resolve(code)} disabled={!code.trim()}>品目を開く</button></div></details>
+    </section>
+  </section></div>;
 }
 
 function OrderModal({ item, history, close, submit }: { item: Item; history: Order[]; close: () => void; submit: (item: Item, quantity: number, purchaser: string) => void }) {
