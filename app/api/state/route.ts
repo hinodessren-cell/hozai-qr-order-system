@@ -136,8 +136,6 @@ export async function POST(request: Request) {
   }
 
   if (payload.action === "push-subscribe") {
-    const unauthorized = await requireAuthenticatedUser();
-    if (unauthorized) return unauthorized;
     const endpoint = typeof payload.subscription?.endpoint === "string" ? payload.subscription.endpoint : "";
     const p256dh = typeof payload.subscription?.keys?.p256dh === "string" ? payload.subscription.keys.p256dh : "";
     const auth = typeof payload.subscription?.keys?.auth === "string" ? payload.subscription.keys.auth : "";

@@ -5,10 +5,11 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 
 test("contains the material ordering workflow", async () => {
-  const [page, route, layout] = await Promise.all([
+  const [page, route, layout, styles] = await Promise.all([
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/api/state/route.ts", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
+    readFile(new URL("app/globals.css", root), "utf8"),
   ]);
 
   assert.match(page, /日の出製作所/);
@@ -24,6 +25,12 @@ test("contains the material ordering workflow", async () => {
   assert.match(page, /function InlineBoard/);
   assert.match(page, /setInterval/);
   assert.match(page, /new Notification/);
+  assert.match(page, /acknowledged-orders/);
+  assert.match(page, /setUnreadOrders\(0\)/);
+  assert.match(page, /acknowledged-status-events/);
+  assert.match(page, /progressLamp/);
+  assert.match(styles, /\.progressLamp/);
+  assert.match(styles, /@media print[\s\S]*\.inlineBoardFields/);
   assert.match(page, /発注取消/);
   assert.match(route, /payload\.action === "order"/);
   assert.match(route, /payload\.action === "status"/);
@@ -32,6 +39,7 @@ test("contains the material ordering workflow", async () => {
   assert.match(route, /payload\.action === "item-create"/);
   assert.match(route, /"取消"/);
   assert.match(route, /payload\.action === "push-subscribe"/);
+  assert.doesNotMatch(route.match(/if \(payload\.action === "push-subscribe"\)[\s\S]*?return Response\.json\(\{ ok: true \}\);/)?.[0] ?? "", /requireAuthenticatedUser/);
   assert.match(route, /duplicate_active_order/);
   assert.match(route, /qty: orderQty/);
   assert.match(route, /Number\.isSafeInteger\(quantity\)/);

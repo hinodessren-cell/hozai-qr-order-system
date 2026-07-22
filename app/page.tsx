@@ -40,8 +40,12 @@ export default function Home() {
   const [scanOpen, setScanOpen] = useState(false);
   const [pushPublicKey, setPushPublicKey] = useState("");
   const [pushStatus, setPushStatus] = useState("親機通知");
+  const [unreadOrders, setUnreadOrders] = useState(0);
+  const [statusAlerts, setStatusAlerts] = useState<Record<"発注待ち" | "入荷待ち" | "入荷済み", number>>({ "発注待ち": 0, "入荷待ち": 0, "入荷済み": 0 });
   const notificationEnabled = useRef(false);
   const seenOrderIds = useRef<Set<string> | null>(null);
+  const acknowledgedOrderIds = useRef<Set<string>>(new Set());
+  const acknowledgedStatusEvents = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     let active = true;
@@ -56,6 +60,12 @@ export default function Home() {
           fresh.forEach((order) => new Notification("新しい補材発注", { body: `${order.purchaser}：${order.code} ${order.name} ${order.qty}${order.unit}`, icon: "/icon-192.png", tag: `order-${order.orderId}` }));
         }
         seenOrderIds.current = new Set(incoming.map((order) => order.orderId));
+        setUnreadOrders(incoming.filter((order) => order.status === "発注待ち" && !acknowledgedOrderIds.current.has(order.orderId)).length);
+        setStatusAlerts({
+          "発注待ち": incoming.filter((order) => order.status === "発注待ち" && !acknowledgedStatusEvents.current.has(`${order.orderId}:発注待ち`)).length,
+          "入荷待ち": incoming.filter((order) => order.status === "入荷待ち" && !acknowledgedStatusEvents.current.has(`${order.orderId}:入荷待ち`)).length,
+          "入荷済み": incoming.filter((order) => order.status === "入荷済み" && !acknowledgedStatusEvents.current.has(`${order.orderId}:入荷済み`)).length,
+        });
         setOrders(incoming);
       }
       if (data?.settings) setSettings((s) => ({ ...s, ...data.settings }));
@@ -63,10 +73,17 @@ export default function Home() {
       if (initial) {
         const search = new URLSearchParams(window.location.search);
         const requested = search.get("item");
-        if (search.get("tab") === "orders") setTab("orders");
+        if (search.get("tab") === "orders") {
+          setTab("orders");
+          (data.orders as Order[]).forEach((order) => acknowledgedOrderIds.current.add(order.orderId));
+          window.localStorage.setItem("acknowledged-orders", JSON.stringify([...acknowledgedOrderIds.current].slice(-500)));
+          setUnreadOrders(0);
+        }
         if (requested) setSelectedItem((data.items ?? initialItems).find((item: Item) => item.id === requested) ?? null);
       }
     };
+    try { acknowledgedOrderIds.current = new Set(JSON.parse(window.localStorage.getItem("acknowledged-orders") ?? "[]")); } catch { acknowledgedOrderIds.current = new Set(); }
+    try { acknowledgedStatusEvents.current = new Set(JSON.parse(window.localStorage.getItem("acknowledged-status-events") ?? "[]")); } catch { acknowledgedStatusEvents.current = new Set(); }
     notificationEnabled.current = window.localStorage.getItem("parent-notifications") === "enabled";
     if (notificationEnabled.current && "Notification" in window && Notification.permission === "granted") setPushStatus("通知登録済み");
     void refresh(true);
@@ -79,6 +96,21 @@ export default function Home() {
 
   const filtered = useMemo(() => orders.filter((o) => `${o.code} ${o.name} ${o.category} ${o.purchaser}`.toLowerCase().includes(query.toLowerCase())), [orders, query]);
   const counts = (status: Status) => orders.filter((o) => o.status === status).length;
+  const openTab = (id: string) => {
+    if (id === "scan") { setScanOpen(true); return; }
+    setTab(id);
+    if (id === "orders") {
+      orders.forEach((order) => acknowledgedOrderIds.current.add(order.orderId));
+      window.localStorage.setItem("acknowledged-orders", JSON.stringify([...acknowledgedOrderIds.current].slice(-500)));
+      setUnreadOrders(0);
+    }
+  };
+  const openStatus = (status: "発注待ち" | "入荷待ち" | "入荷済み") => {
+    orders.filter((order) => order.status === status).forEach((order) => acknowledgedStatusEvents.current.add(`${order.orderId}:${status}`));
+    window.localStorage.setItem("acknowledged-status-events", JSON.stringify([...acknowledgedStatusEvents.current].slice(-1500)));
+    setStatusAlerts((current) => ({ ...current, [status]: 0 }));
+    setTab("orders");
+  };
 
   async function advance(orderId: string) {
     const current = orders.find((o) => o.orderId === orderId);
@@ -96,14 +128,16 @@ export default function Home() {
     const existing = orders.find((order) => order.id === item.id && (order.status === "発注待ち" || order.status === "入荷待ち"));
     if (existing) {
       setSelectedItem(null);
-      setTab("orders");
+      openTab("orders");
       window.alert(`この品目はすでに${existing.status}です。二重発注を防止しました。`);
       return;
     }
     const qty = Math.max(1, quantity);
+    // This timestamp is created only after the user confirms an order.
+    // eslint-disable-next-line react-hooks/purity
     const order = { ...item, qty, orderId: `O-${Date.now()}`, status: "発注待ち" as Status, orderedAt: new Date().toISOString(), purchaser: purchaser.trim() };
     setOrders((current) => [order, ...current]);
-    setSelectedItem(null); setTab("orders");
+    setSelectedItem(null); openTab("orders");
     try {
       await postState({ action: "order", itemId: item.id, orderId: order.orderId, quantity: qty, purchaser: order.purchaser });
     } catch (error) {
@@ -144,8 +178,8 @@ export default function Home() {
     setEditingItem(null);
   }
   async function enableParentNotifications() {
-    if (!pushPublicKey || !("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
-      window.alert("この端末ではプッシュ通知を利用できません。");
+    if (!("Notification" in window)) {
+      window.alert("この端末では通知を利用できません。");
       return;
     }
     try {
@@ -155,6 +189,10 @@ export default function Home() {
         return;
       }
       setPushStatus("登録中…");
+      window.localStorage.setItem("parent-notifications", "enabled");
+      notificationEnabled.current = true;
+      setPushStatus("通知登録済み");
+      if (!pushPublicKey || !("serviceWorker" in navigator) || !("PushManager" in window)) return;
       const registration = await navigator.serviceWorker.ready;
       const current = await registration.pushManager.getSubscription();
       const subscription = current ?? await registration.pushManager.subscribe({
@@ -162,12 +200,9 @@ export default function Home() {
         applicationServerKey: urlBase64ToArrayBuffer(pushPublicKey),
       });
       await postState({ action: "push-subscribe", subscription: subscription.toJSON() });
-      window.localStorage.setItem("parent-notifications", "enabled");
-      notificationEnabled.current = true;
-      setPushStatus("通知登録済み");
     } catch (error) {
-      setPushStatus("親機通知");
-      showRequestError(error);
+      if (notificationEnabled.current) setPushStatus("アプリ内通知済み");
+      else { setPushStatus("親機通知"); showRequestError(error); }
     }
   }
 
@@ -180,7 +215,7 @@ export default function Home() {
     <div className={`app density-${settings.density}`} style={{ "--accent": settings.accent } as React.CSSProperties}>
       <aside className="sidebar">
         <div className="brand"><span className="brandLogo"/><div><strong>{settings.siteName}</strong><small>MATERIAL ORDER CONTROL</small></div></div>
-        <nav>{nav.map(([id, label, icon]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => id === "scan" ? setScanOpen(true) : setTab(id)}><span>{icon}</span><span className="navLabel">{label}</span>{id === "orders" && counts("発注待ち") > 0 && <b className="notificationBadge" aria-label={`未確認 ${counts("発注待ち")}件`}>{counts("発注待ち") > 99 ? "99+" : counts("発注待ち")}</b>}</button>)}</nav>
+        <nav>{nav.map(([id, label, icon]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => openTab(id)}><span>{icon}</span><span className="navLabel">{label}</span>{id === "orders" && unreadOrders > 0 && <b className="notificationBadge" aria-label={`未確認 ${unreadOrders}件`}>{unreadOrders > 99 ? "99+" : unreadOrders}</b>}</button>)}</nav>
         <button className="settingsButton" onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button>
       </aside>
 
@@ -189,15 +224,15 @@ export default function Home() {
 
         {tab === "dashboard" && <>
           <section className="stats">
-            <article className="stat red"><small>発注待ち</small><strong>{counts("発注待ち")}</strong><span>件</span></article>
-            <article className="stat blue"><small>入荷待ち</small><strong>{counts("入荷待ち")}</strong><span>件</span></article>
-            <article className="stat gray"><small>入荷済み</small><strong>{counts("入荷済み")}</strong><span>件</span></article>
+            <button className="stat red" onClick={() => openStatus("発注待ち")}><small>発注待ち</small>{statusAlerts["発注待ち"] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<strong>{counts("発注待ち")}</strong><span>件</span></button>
+            <button className="stat blue" onClick={() => openStatus("入荷待ち")}><small>入荷待ち</small>{statusAlerts["入荷待ち"] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<strong>{counts("入荷待ち")}</strong><span>件</span></button>
+            <button className="stat gray" onClick={() => openStatus("入荷済み")}><small>入荷済み</small>{statusAlerts["入荷済み"] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<strong>{counts("入荷済み")}</strong><span>件</span></button>
             <article className="stat total"><small>登録品目</small><strong>{items.length.toLocaleString("ja-JP")}</strong><span>品</span></article>
           </section>
           <OrderList orders={orders.filter((o) => o.status === "発注待ち" || o.status === "入荷待ち").slice(0, 5)} onAdvance={advance} onCancel={cancelOrder} showMemo={settings.showMemo} title="進行中の発注" />
         </>}
 
-        {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} showMemo={settings.showMemo} />}
+        {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
         {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} showMemo={settings.showMemo} title="すべての履歴" />}
 
         {tab === "items" && <section><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS</p><h2>品目マスター</h2></div><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <article className="itemCard" key={item.id}><small>{item.category}</small><b>{item.code}</b><h3>{item.name}</h3>{settings.showLocation && <span>⌖ {item.location}</span>}<em>発注数量 {item.qty}{item.unit}</em><div className="itemActions"><button className="outline" onClick={() => setEditingItem(item)}>品目を編集</button><button className="primary" onClick={() => setSelectedItem(item)}>発注する</button></div></article>)}</div></section>}
@@ -220,11 +255,11 @@ function OrderList({ orders, onAdvance, onCancel, showMemo, title }: { orders: O
   return <section className="orderSection"><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>{title}</h2></div></div><div className="orderList">{orders.map((o) => <article className="orderRow" key={o.orderId}><span className={`status s-${o.status}`}>{o.status}</span><div className="orderMain"><small>{o.code} ・ {o.category}</small><h3>{o.name}</h3>{showMemo && <p>{o.memo}</p>}</div><div className="orderMeta"><small>数量</small><strong>{o.qty}<i>{o.unit}</i></strong></div><div className="orderMeta"><small>発注者</small><b>{o.purchaser}</b><span>{o.orderedAt}</span></div>{o.status === "発注待ち" || o.status === "入荷待ち" ? <div className="orderActions"><button className="next" onClick={() => onAdvance(o.orderId)}>{o.status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button><button className="cancelOrder" onClick={() => onCancel(o.orderId)}>発注取消</button></div> : <span className={`done ${o.status === "取消" ? "cancelled" : ""}`}>{o.status === "取消" ? "× 取消" : "✓ 入荷済み"}</span>}</article>)}</div></section>;
 }
 
-function OrderBoard({ orders, onAdvance, onCancel, showMemo }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; showMemo: boolean }) {
+function OrderBoard({ orders, onAdvance, onCancel, onViewStatus, statusAlerts, showMemo }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; onViewStatus: (status: "発注待ち" | "入荷待ち" | "入荷済み") => void; statusAlerts: Record<"発注待ち" | "入荷待ち" | "入荷済み", number>; showMemo: boolean }) {
   const statuses: Exclude<Status, "取消">[] = ["発注待ち", "入荷待ち", "入荷済み"];
   return <section><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>発注・入荷状況</h2></div></div><div className="pipelineBoard">{statuses.map((status) => {
     const statusOrders = orders.filter((order) => order.status === status);
-    return <section className="pipelineColumn" key={status}><header><h3>{status}</h3><span>{statusOrders.length}</span></header><div>{statusOrders.map((order) => <article className="pipelineCard" key={order.orderId}><small>{order.code} ・ {order.category}</small><h4>{order.name}</h4>{showMemo && <p>{order.memo}</p>}<dl><div><dt>数量</dt><dd>{order.qty}{order.unit}</dd></div><div><dt>発注者</dt><dd>{order.purchaser}</dd></div></dl>{status !== "入荷済み" && <div className="orderActions"><button className="next" onClick={() => onAdvance(order.orderId)}>{status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button><button className="cancelOrder" onClick={() => onCancel(order.orderId)}>発注取消</button></div>}</article>)}</div></section>;
+    return <section className="pipelineColumn" key={status}><header onClick={() => onViewStatus(status)}><h3>{status}</h3>{statusAlerts[status] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<span>{statusOrders.length}</span></header><div>{statusOrders.map((order) => <article className="pipelineCard" key={order.orderId}><small>{order.code} ・ {order.category}</small><h4>{order.name}</h4>{showMemo && <p>{order.memo}</p>}<dl><div><dt>数量</dt><dd>{order.qty}{order.unit}</dd></div><div><dt>発注者</dt><dd>{order.purchaser}</dd></div></dl>{status !== "入荷済み" && <div className="orderActions"><button className="next" onClick={() => onAdvance(order.orderId)}>{status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button><button className="cancelOrder" onClick={() => onCancel(order.orderId)}>発注取消</button></div>}</article>)}</div></section>;
   })}</div></section>;
 }
 
