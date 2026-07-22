@@ -21,6 +21,8 @@ test("contains the material ordering workflow", async () => {
   assert.match(page, /QrScannerEngine/);
   assert.match(page, /push-subscribe/);
   assert.match(page, /発注者名（必須）/);
+  assert.match(page, /前回までの発注履歴/);
+  assert.match(page, /formatOrderDate/);
   assert.match(page, /function ItemEditor/);
   assert.match(page, /function InlineBoard/);
   assert.match(page, /setInterval/);

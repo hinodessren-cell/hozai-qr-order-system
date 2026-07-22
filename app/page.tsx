@@ -242,7 +242,7 @@ export default function Home() {
 
       {scanOpen && <QrScanner items={items} close={() => setScanOpen(false)} found={(item) => { setScanOpen(false); setSelectedItem(item); }} />}
 
-      {selectedItem && <OrderModal item={selectedItem} close={() => setSelectedItem(null)} submit={placeOrder} />}
+      {selectedItem && <OrderModal item={selectedItem} history={orders.filter((order) => order.id === selectedItem.id)} close={() => setSelectedItem(null)} submit={placeOrder} />}
 
       {editingItem && <ItemEditor item={editingItem === "new" ? null : editingItem} close={() => setEditingItem(null)} save={saveItem} />}
 
@@ -339,10 +339,15 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
   return <div className="modalBackdrop" onClick={close}><section className="scanModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">QR SCANNER</p><h2>QR看板を読み取る</h2><div className="camera"><video ref={videoRef} muted playsInline/><span>{message}</span></div><label className="qrFileButton">QR画像を選択<input type="file" accept="image/*" capture="environment" onChange={(event) => void scanFile(event.target.files?.[0])} /></label><label>または管理番号を入力<input value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") resolve(code); }} placeholder="例：HZ-2CE1D46BD51220" /></label><button className="primary wide" onClick={() => resolve(code)} disabled={!code.trim()}>品目を開く</button></section></div>;
 }
 
-function OrderModal({ item, close, submit }: { item: Item; close: () => void; submit: (item: Item, quantity: number, purchaser: string) => void }) {
+function OrderModal({ item, history, close, submit }: { item: Item; history: Order[]; close: () => void; submit: (item: Item, quantity: number, purchaser: string) => void }) {
   const [quantity, setQuantity] = useState(Math.max(1, item.qty));
   const [purchaser, setPurchaser] = useState("");
-  return <div className="modalBackdrop" onClick={close}><section className="orderModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">ORDER ITEM</p><h2>{item.name}</h2><div className="orderCode">{item.code}<span>{item.category}</span></div><dl><div><dt>保管場所</dt><dd>{item.location}</dd></div><div><dt>備考</dt><dd>{item.memo}</dd></div></dl><label>発注者名（必須）<input autoFocus value={purchaser} onChange={(event) => setPurchaser(event.target.value)} placeholder="氏名を入力" maxLength={100}/></label><label>発注数量<div className="quantity"><button aria-label="数量を減らす" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><input type="number" min="1" value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}/><span>{item.unit}</span><button aria-label="数量を増やす" onClick={() => setQuantity((value) => value + 1)}>＋</button></div></label><button className="primary wide" disabled={!purchaser.trim()} onClick={() => submit(item, quantity, purchaser)}>この内容で発注する</button></section></div>;
+  return <div className="modalBackdrop" onClick={close}><section className="orderModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">ORDER ITEM</p><h2>{item.name}</h2><div className="orderCode">{item.code}<span>{item.category}</span></div><dl><div><dt>保管場所</dt><dd>{item.location}</dd></div><div><dt>備考</dt><dd>{item.memo}</dd></div></dl>{history.length > 0 && <section className="previousOrders"><h3>前回までの発注履歴</h3>{history.slice(0, 3).map((order, index) => <article key={order.orderId}><div><b>{index === 0 ? "前回" : `${index + 1}回前`}</b><span>{formatOrderDate(order.orderedAt)}</span></div><strong>{order.qty}{order.unit}</strong><small>{order.purchaser} ・ {order.status}</small></article>)}</section>}<label>発注者名（必須）<input autoFocus value={purchaser} onChange={(event) => setPurchaser(event.target.value)} placeholder="氏名を入力" maxLength={100}/></label><label>発注数量<div className="quantity"><button aria-label="数量を減らす" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><input type="number" min="1" value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}/><span>{item.unit}</span><button aria-label="数量を増やす" onClick={() => setQuantity((value) => value + 1)}>＋</button></div></label><button className="primary wide" disabled={!purchaser.trim()} onClick={() => submit(item, quantity, purchaser)}>この内容で発注する</button></section></div>;
+}
+
+function formatOrderDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
 }
 
 function ItemEditor({ item, close, save }: { item: Item | null; close: () => void; save: (item: Item, isNew: boolean) => Promise<void> }) {
