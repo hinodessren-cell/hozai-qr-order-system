@@ -1,14 +1,14 @@
 {
-  "name": "補材 QR 発注管理",
-  "short_name": "補材発注",
-  "description": "QRコードから補材を発注し、入荷・完了までを管理します。",
+  "name": "日の出製作所 補材発注管理",
+  "short_name": "日の出補材",
+  "description": "QRコードから補材を発注し、入荷済みまでを管理します。",
   "lang": "ja",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#f4f1ea",
-  "theme_color": "#15362e",
+  "theme_color": "#071a33",
   "icons": [
     {
       "src": "/icon-192.png",

@@ -11,3 +11,9 @@ export const orders = sqliteTable("orders", {
   orderedAt: text("ordered_at").notNull(), updatedAt: text("updated_at").notNull(),
 });
 export const appSettings = sqliteTable("app_settings", { key: text("key").primaryKey(), value: text("value").notNull() });
+export const pushSubscriptions = sqliteTable("push_subscriptions", {
+  endpoint: text("endpoint").primaryKey(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: text("created_at").notNull(),
+});

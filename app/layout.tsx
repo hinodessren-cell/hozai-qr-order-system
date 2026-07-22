@@ -4,7 +4,7 @@ import "./globals.css";
 import PwaRegister from "./pwa-register";
 
 export const viewport: Viewport = {
-  themeColor: "#15362e",
+  themeColor: "#071a33",
 };
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -13,9 +13,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.includes("localhost") ? "http" : "https");
   const origin = `${protocol}://${host}`;
   return {
-    title: "補材 QR 発注管理",
-    description: "QR看板から発注・入荷・完了までを一元管理する補材発注システム",
-    applicationName: "補材 QR 発注管理",
+    title: "日の出製作所 補材発注管理",
+    description: "QR看板から発注・入荷済みまでを一元管理する日の出製作所の補材発注システム",
+    applicationName: "日の出製作所 補材発注管理",
     manifest: "/manifest.webmanifest",
     icons: {
       icon: [
@@ -28,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
     appleWebApp: {
       capable: true,
       statusBarStyle: "black-translucent",
-      title: "補材発注",
+      title: "日の出補材発注",
     },
     openGraph: { title: "補材 QR 発注管理", description: "気づいた、その場で発注。", images: [`${origin}/og.png`] },
     twitter: { card: "summary_large_image", title: "補材 QR 発注管理", description: "気づいた、その場で発注。", images: [`${origin}/og.png`] },

@@ -1,4 +1,4 @@
-const CACHE_NAME = "hozai-qr-order-v1";
+const CACHE_NAME = "hozai-qr-order-v2";
 const APP_ASSETS = [
   "/manifest.webmanifest",
   "/favicon.svg",
@@ -48,4 +48,35 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(caches.match(request).then((cached) => cached ?? fetch(request)));
+});
+
+self.addEventListener("push", (event) => {
+  let message = { title: "新しい補材発注", body: "新しい発注が登録されました。", url: "/?tab=orders" };
+  try {
+    if (event.data) message = { ...message, ...event.data.json() };
+  } catch {
+    if (event.data) message.body = event.data.text();
+  }
+  event.waitUntil(self.registration.showNotification(message.title, {
+    body: message.body,
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: message.itemId ? `order-${message.itemId}` : "new-order",
+    data: { url: message.url },
+  }));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL(event.notification.data?.url ?? "/?tab=orders", self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(async (clients) => {
+      const existing = clients.find((client) => "focus" in client);
+      if (existing) {
+        await existing.navigate(target);
+        return existing.focus();
+      }
+      return self.clients.openWindow(target);
+    }),
+  );
 });
