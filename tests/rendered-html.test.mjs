@@ -18,6 +18,12 @@ test("contains the material ordering workflow", async () => {
   assert.match(route, /payload\.action === "order"/);
   assert.match(route, /payload\.action === "status"/);
   assert.match(route, /payload\.action === "settings"/);
+  assert.match(route, /qty: orderQty/);
+  assert.match(route, /Number\.isSafeInteger\(quantity\)/);
+  assert.match(route, /orderStatuses\.includes/);
+  assert.match(route, /getChatGPTUser/);
+  assert.match(route, /status: 401/);
+  assert.match(page, /signin-with-chatgpt/);
   assert.match(layout, /title: "補材 QR 発注管理"/);
   assert.match(layout, /<html lang="ja">/);
 });
