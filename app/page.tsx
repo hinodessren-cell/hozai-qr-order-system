@@ -240,7 +240,7 @@ export default function Home() {
         {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
         {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} showMemo={settings.showMemo} title="すべての履歴" />}
 
-        {tab === "items" && <section><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS</p><h2>品目マスター</h2></div><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <article className="itemCard" key={item.id}><small>{item.category}</small><b>{item.code}</b><h3>{item.name}</h3>{settings.showLocation && <span>⌖ {item.location}</span>}<em>発注数量 {item.qty}{item.unit}</em><div className="itemActions"><button className="outline" onClick={() => setEditingItem(item)}>品目を編集</button><button className="primary" onClick={() => setSelectedItem(item)}>発注する</button></div></article>)}</div></section>}
+        {tab === "items" && <section><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS</p><h2>品目マスター</h2><span className="editHint">文字をタップすると、その場で入力できます。Enterまたは枠外のタップで保存します。</span></div><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div></section>}
 
         {tab === "boards" && <QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} />}
       </main>
@@ -287,6 +287,25 @@ function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise
     <div className="inlineMeta"><label>⌖ <input aria-label="保管場所" value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label>発注数量 <input className="inlineQty" aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/><input className="inlineUnit" aria-label="単位" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label></div>
     <b>在庫が少なくなりましたら発注してください。</b>
   </div></article>;
+}
+
+function InlineItemCard({ item, showLocation, save, edit, order }: { item: Item; showLocation: boolean; save: (item: Item) => Promise<void>; edit: () => void; order: () => void }) {
+  const [draft, setDraft] = useState(item);
+  const commit = async () => {
+    if (JSON.stringify(draft) === JSON.stringify(item)) return;
+    try { await save(draft); } catch { setDraft(item); }
+  };
+  const keyDown = (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") event.currentTarget.blur(); };
+  const field = (key: keyof Item, label: string, className = "") => <input className={className} aria-label={label} value={String(draft[key])} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>;
+  return <article className="itemCard inlineItemCard">
+    {field("category", "カテゴリ", "inlineItemCategory")}
+    {field("code", "品番", "inlineItemCode")}
+    {field("name", "品名", "inlineItemName")}
+    {showLocation && <label className="inlineItemLocation">⌖ {field("location", "保管場所")}</label>}
+    {field("memo", "備考", "inlineItemMemo")}
+    <label className="inlineItemQuantity">発注数量 <input aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</label>
+    <div className="itemActions"><button className="outline" onClick={edit}>詳細編集</button><button className="primary" onClick={order}>発注する</button></div>
+  </article>;
 }
 
 function FakeQr({ value }: { value: string }) {
