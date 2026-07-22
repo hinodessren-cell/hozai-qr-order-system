@@ -5,7 +5,7 @@ import { getChatGPTUser } from "../../chatgpt-auth";
 import { getDb } from "../../../db";
 import { appSettings, items, orders, pushSubscriptions } from "../../../db/schema";
 
-const orderStatuses = ["発注待ち", "入荷待ち", "入荷済み"] as const;
+const orderStatuses = ["発注待ち", "入荷待ち", "入荷済み", "取消"] as const;
 const activeOrderStatuses = ["発注待ち", "入荷待ち"] as const;
 const runtimeEnv = env as unknown as {
   VAPID_PUBLIC_KEY?: string;
@@ -150,10 +150,10 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
-  if (payload.action === "item") {
+  if (payload.action === "item" || payload.action === "item-create") {
     const unauthorized = await requireAuthenticatedUser();
     if (unauthorized) return unauthorized;
-    if (!payload.itemId) return badRequest("品目IDが必要です。");
+    if (payload.action === "item" && !payload.itemId) return badRequest("品目IDが必要です。");
     const fields = payload.settings;
     if (!fields || Array.isArray(fields)) return badRequest("品目の編集内容が必要です。");
     const textValue = (key: string, max: number) => typeof fields[key] === "string" ? fields[key].trim().slice(0, max) : "";
@@ -162,11 +162,17 @@ export async function POST(request: Request) {
     if (!code || !name) return badRequest("品番と品名は必須です。");
     const orderQty = Number(fields.qty);
     if (!Number.isSafeInteger(orderQty) || orderQty < 1 || orderQty > 10_000) return badRequest("発注数量は1～10000の整数で指定してください。");
-    await db.update(items).set({
+    const values = {
       code, name, category: textValue("category", 100), unit: textValue("unit", 30) || "個",
       orderQty, location: textValue("location", 200), memo: textValue("memo", 500),
-    }).where(eq(items.id, payload.itemId));
-    return Response.json({ ok: true });
+    };
+    if (payload.action === "item-create") {
+      const id = `HZ-${crypto.randomUUID().replaceAll("-", "").slice(0, 14).toUpperCase()}`;
+      await db.insert(items).values({ id, ...values });
+      return Response.json({ ok: true, item: serializeItem({ id, ...values }) });
+    }
+    await db.update(items).set(values).where(eq(items.id, payload.itemId!));
+    return Response.json({ ok: true, item: serializeItem({ id: payload.itemId!, ...values }) });
   }
 
   return badRequest("未対応の操作です。");

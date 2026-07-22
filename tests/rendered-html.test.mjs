@@ -19,10 +19,18 @@ test("contains the material ordering workflow", async () => {
   assert.match(page, /function QrBoards/);
   assert.match(page, /QrScannerEngine/);
   assert.match(page, /push-subscribe/);
+  assert.match(page, /発注者名（必須）/);
+  assert.match(page, /function ItemEditor/);
+  assert.match(page, /function InlineBoard/);
+  assert.match(page, /setInterval/);
+  assert.match(page, /new Notification/);
+  assert.match(page, /発注取消/);
   assert.match(route, /payload\.action === "order"/);
   assert.match(route, /payload\.action === "status"/);
   assert.match(route, /payload\.action === "settings"/);
   assert.match(route, /payload\.action === "item"/);
+  assert.match(route, /payload\.action === "item-create"/);
+  assert.match(route, /"取消"/);
   assert.match(route, /payload\.action === "push-subscribe"/);
   assert.match(route, /duplicate_active_order/);
   assert.match(route, /qty: orderQty/);
