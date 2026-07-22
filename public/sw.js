@@ -1,4 +1,4 @@
-const CACHE_NAME = "hozai-qr-order-v2";
+const CACHE_NAME = "hozai-qr-order-v4";
 const APP_ASSETS = [
   "/manifest.webmanifest",
   "/favicon.svg",
@@ -47,7 +47,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(caches.match(request).then((cached) => cached ?? fetch(request)));
+  if (request.destination === "script" || request.destination === "style" || request.destination === "worker") {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  event.respondWith(fetch(request).catch(() => caches.match(request)));
 });
 
 self.addEventListener("push", (event) => {

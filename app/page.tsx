@@ -320,7 +320,10 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
       try {
         setCameraFailed(false);
         videoRef.current.setAttribute("webkit-playsinline", "true");
-        if (!navigator.mediaDevices?.getUserMedia || !(await QrScannerEngine.hasCamera())) throw new Error("camera-unavailable");
+        // iOS hides camera devices until permission has been requested. Calling
+        // hasCamera() first can therefore report a false negative and prevents
+        // Safari from ever showing the permission prompt.
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error("camera-unavailable");
         scanner = new QrScannerEngine(
           videoRef.current,
           (result) => resolve(result.data),

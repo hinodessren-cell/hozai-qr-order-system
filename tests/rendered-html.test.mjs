@@ -64,13 +64,14 @@ test("contains the material ordering workflow", async () => {
 });
 
 test("ships the migrated database and QR assets", async () => {
-  const [schema, initialMigration, legacyMigration, workflowMigration, qrGenerator, serviceWorker, qrFiles] = await Promise.all([
+  const [schema, initialMigration, legacyMigration, workflowMigration, qrGenerator, serviceWorker, pwaRegister, qrFiles] = await Promise.all([
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("drizzle/0000_initial.sql", root), "utf8"),
     readFile(new URL("drizzle/0001_legacy_data.sql", root), "utf8"),
     readFile(new URL("drizzle/0002_order_workflow.sql", root), "utf8"),
     readFile(new URL("scripts/generate_qr_assets.py", root), "utf8"),
     readFile(new URL("public/sw.js", root), "utf8"),
+    readFile(new URL("app/pwa-register.tsx", root), "utf8"),
     readdir(new URL("public/qr/", root)),
   ]);
 
@@ -82,6 +83,9 @@ test("ships the migrated database and QR assets", async () => {
   assert.match(workflowMigration, /prevent_duplicate_active_order/);
   assert.match(workflowMigration, /push_subscriptions/);
   assert.match(serviceWorker, /addEventListener\("push"/);
+  assert.match(serviceWorker, /request\.destination === "script"/);
+  assert.match(pwaRegister, /updateViaCache: "none"/);
+  assert.match(pwaRegister, /controllerchange/);
   assert.match(qrGenerator, /QR_BASE_URL/);
   assert.match(qrGenerator, /\?item=/);
   assert.equal(qrFiles.filter((name) => name.endsWith(".svg")).length, 1512);
