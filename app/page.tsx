@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Status = "発注待ち" | "入荷待ち" | "完了";
 type Item = { id: string; code: string; name: string; category: string; unit: string; qty: number; location: string; memo: string };
@@ -111,6 +111,8 @@ function OrderList({ orders, onAdvance, showMemo, title }: { orders: Order[]; on
 }
 
 function FakeQr({ value }: { value: string }) {
+  // QR assets are generated SVG files and should be served directly without image optimization.
+  // eslint-disable-next-line @next/next/no-img-element
   return <img className="fakeQr" src={`/qr/${encodeURIComponent(value)}.svg`} alt={`品目 ${value} の発注用QRコード`} />;
 }
 
@@ -119,12 +121,12 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("カメラをQRコードへ向けてください");
 
-  const resolve = (raw: string) => {
+  const resolve = useCallback((raw: string) => {
     let id = raw.trim();
     try { id = new URL(id).searchParams.get("item") ?? id; } catch { /* 管理番号を直接入力した場合 */ }
     const item = items.find((row) => row.id.toLowerCase() === id.toLowerCase());
     if (item) found(item); else setMessage("該当する品目が見つかりません。管理番号をご確認ください。");
-  };
+  }, [found, items]);
 
   useEffect(() => {
     let active = true;
@@ -155,7 +157,7 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
     };
     void start();
     return () => { active = false; window.clearTimeout(timer); stream?.getTracks().forEach((track) => track.stop()); };
-  }, []);
+  }, [resolve]);
 
   return <div className="modalBackdrop" onClick={close}><section className="scanModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">QR SCANNER</p><h2>QR看板を読み取る</h2><div className="camera"><video ref={videoRef} muted playsInline/><div className="scanFrame"/><span>{message}</span></div><label>または管理番号を入力<input value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") resolve(code); }} placeholder="例：HZ-2CE1D46BD51220" /></label><button className="primary wide" onClick={() => resolve(code)} disabled={!code.trim()}>品目を開く</button></section></div>;
 }
