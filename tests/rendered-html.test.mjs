@@ -11,14 +11,14 @@ test("contains the material ordering workflow", async () => {
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
 
-  assert.match(page, /?? QR ????/);
+  assert.match(page, /補材 QR 発注管理/);
   assert.match(page, /function QrScanner/);
   assert.match(page, /action: "order"/);
   assert.match(page, /action: "status"/);
   assert.match(route, /payload\.action === "order"/);
   assert.match(route, /payload\.action === "status"/);
   assert.match(route, /payload\.action === "settings"/);
-  assert.match(layout, /title: "?? QR ????"/);
+  assert.match(layout, /title: "補材 QR 発注管理"/);
   assert.match(layout, /<html lang="ja">/);
 });
 
