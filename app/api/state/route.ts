@@ -1,4 +1,5 @@
 import { desc, eq } from "drizzle-orm";
+import { getChatGPTUser } from "../../chatgpt-auth";
 import { getDb } from "../../../db";
 import { appSettings, items, orders } from "../../../db/schema";
 
@@ -11,6 +12,11 @@ function serializeItem(item: typeof items.$inferSelect) {
 
 function badRequest(message: string) {
   return Response.json({ ok: false, error: message }, { status: 400 });
+}
+
+async function requireAuthenticatedUser() {
+  const user = await getChatGPTUser();
+  return user ? null : Response.json({ ok: false, error: "この操作にはログインが必要です。" }, { status: 401 });
 }
 
 export async function GET() {
@@ -60,6 +66,8 @@ export async function POST(request: Request) {
   }
 
   if (payload.action === "status") {
+    const unauthorized = await requireAuthenticatedUser();
+    if (unauthorized) return unauthorized;
     if (!payload.orderId || !payload.status) return badRequest("発注IDと状態が必要です。");
     if (!orderStatuses.includes(payload.status as (typeof orderStatuses)[number])) return badRequest("指定された状態は使用できません。");
     await db.update(orders).set({ status: payload.status, updatedAt: new Date().toISOString() }).where(eq(orders.id, payload.orderId));
@@ -67,6 +75,8 @@ export async function POST(request: Request) {
   }
 
   if (payload.action === "settings") {
+    const unauthorized = await requireAuthenticatedUser();
+    if (unauthorized) return unauthorized;
     if (!payload.settings || Array.isArray(payload.settings)) return badRequest("設定オブジェクトが必要です。");
     for (const [key, value] of Object.entries(payload.settings)) await db.insert(appSettings).values({ key, value: JSON.stringify(value) }).onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(value) } });
     return Response.json({ ok: true });

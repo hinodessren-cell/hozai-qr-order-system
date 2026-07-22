@@ -49,18 +49,29 @@ export default function Home() {
   const filtered = useMemo(() => orders.filter((o) => `${o.code} ${o.name} ${o.category} ${o.purchaser}`.toLowerCase().includes(query.toLowerCase())), [orders, query]);
   const counts = (status: Status) => orders.filter((o) => o.status === status).length;
 
-  function advance(orderId: string) {
+  async function advance(orderId: string) {
     const current = orders.find((o) => o.orderId === orderId);
+    if (!current) return;
     const status = current?.status === "発注待ち" ? "入荷待ち" : "完了";
     setOrders((rows) => rows.map((o) => o.orderId === orderId ? { ...o, status } : o));
-    fetch("/api/state", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "status", orderId, status }) }).catch(() => undefined);
+    try {
+      await postState({ action: "status", orderId, status });
+    } catch (error) {
+      setOrders((rows) => rows.map((o) => o.orderId === orderId ? { ...o, status: current.status } : o));
+      showRequestError(error);
+    }
   }
-  function placeOrder(item: Item, quantity: number) {
+  async function placeOrder(item: Item, quantity: number) {
     const qty = Math.max(1, quantity);
     const order = { ...item, qty, orderId: `O-${Date.now()}`, status: "発注待ち" as Status, orderedAt: new Date().toISOString(), purchaser: "担当者" };
     setOrders((current) => [order, ...current]);
-    fetch("/api/state", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "order", itemId: item.id, orderId: order.orderId, quantity: qty, purchaser: order.purchaser }) }).catch(() => undefined);
     setSelectedItem(null); setTab("orders");
+    try {
+      await postState({ action: "order", itemId: item.id, orderId: order.orderId, quantity: qty, purchaser: order.purchaser });
+    } catch (error) {
+      setOrders((current) => current.filter((row) => row.orderId !== order.orderId));
+      showRequestError(error);
+    }
   }
 
   const nav = [
@@ -101,7 +112,7 @@ export default function Home() {
 
       {selectedItem && <OrderModal item={selectedItem} close={() => setSelectedItem(null)} submit={placeOrder} />}
 
-      {settingsOpen && <SettingsPanel settings={settings} setSettings={setSettings} close={() => setSettingsOpen(false)} save={() => { fetch("/api/state", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "settings", settings }) }).catch(() => undefined); setSettingsOpen(false); }} />}
+      {settingsOpen && <SettingsPanel settings={settings} setSettings={setSettings} close={() => setSettingsOpen(false)} save={async () => { try { await postState({ action: "settings", settings }); setSettingsOpen(false); } catch (error) { showRequestError(error); } }} />}
     </div>
   );
 }
@@ -178,3 +189,21 @@ function SettingsPanel({ settings, setSettings, close, save }: { settings: typeo
 }
 
 function Check({ label, value, change }: { label: string; value: boolean; change: (v: boolean) => void }) { return <label className="check"><input type="checkbox" checked={value} onChange={(e) => change(e.target.checked)}/><span/>{label}</label>; }
+
+async function postState(payload: Record<string, unknown>) {
+  const response = await fetch("/api/state", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+  if (response.status === 401) {
+    const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    window.location.assign(`/signin-with-chatgpt?return_to=${encodeURIComponent(returnTo)}`);
+    throw new Error("ログイン画面へ移動します。");
+  }
+  if (!response.ok) {
+    const data = await response.json().catch(() => null) as { error?: string } | null;
+    throw new Error(data?.error ?? "操作を完了できませんでした。");
+  }
+}
+
+function showRequestError(error: unknown) {
+  if (error instanceof Error && error.message === "ログイン画面へ移動します。") return;
+  window.alert(error instanceof Error ? error.message : "操作を完了できませんでした。");
+}
