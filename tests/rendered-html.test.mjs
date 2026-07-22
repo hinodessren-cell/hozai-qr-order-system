@@ -14,6 +14,8 @@ test("contains the material ordering workflow", async () => {
 
   assert.match(page, /日の出製作所/);
   assert.match(page, /function QrScanner/);
+  assert.match(page, /history\.replaceState/);
+  assert.match(page, /search\.delete\("item"\)/);
   assert.match(page, /action: "order"/);
   assert.match(page, /action: "status"/);
   assert.match(page, /function OrderBoard/);

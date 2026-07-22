@@ -79,7 +79,12 @@ export default function Home() {
           window.localStorage.setItem("acknowledged-orders", JSON.stringify([...acknowledgedOrderIds.current].slice(-500)));
           setUnreadOrders(0);
         }
-        if (requested) setSelectedItem((data.items ?? initialItems).find((item: Item) => item.id === requested) ?? null);
+        if (requested) {
+          setSelectedItem((data.items ?? initialItems).find((item: Item) => item.id === requested) ?? null);
+          search.delete("item");
+          const cleanQuery = search.toString();
+          window.history.replaceState({}, "", `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash}`);
+        }
       }
     };
     try { acknowledgedOrderIds.current = new Set(JSON.parse(window.localStorage.getItem("acknowledged-orders") ?? "[]")); } catch { acknowledgedOrderIds.current = new Set(); }
