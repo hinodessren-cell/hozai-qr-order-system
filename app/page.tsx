@@ -46,6 +46,7 @@ export default function Home() {
   const seenOrderIds = useRef<Set<string> | null>(null);
   const acknowledgedOrderIds = useRef<Set<string>>(new Set());
   const acknowledgedStatusEvents = useRef<Set<string>>(new Set());
+  const nativeCameraInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -101,8 +102,23 @@ export default function Home() {
 
   const filtered = useMemo(() => orders.filter((o) => `${o.code} ${o.name} ${o.category} ${o.purchaser}`.toLowerCase().includes(query.toLowerCase())), [orders, query]);
   const counts = (status: Status) => orders.filter((o) => o.status === status).length;
+  const scanNativeCameraImage = async (file?: File) => {
+    if (!file) return;
+    try {
+      const result = await QrScannerEngine.scanImage(file, { returnDetailedScanResult: true });
+      let id = result.data.trim();
+      try { id = new URL(id).searchParams.get("item") ?? id; } catch { /* 管理番号のみのQRコード */ }
+      const item = items.find((row) => row.id.toLowerCase() === id.toLowerCase());
+      if (item) setSelectedItem(item);
+      else window.alert("このQRコードに対応する品目が見つかりませんでした。");
+    } catch {
+      window.alert("QRコードを読み取れませんでした。QRコード全体が写るように、もう一度撮影してください。");
+    } finally {
+      if (nativeCameraInput.current) nativeCameraInput.current.value = "";
+    }
+  };
   const openTab = (id: string) => {
-    if (id === "scan") { setScanOpen(true); return; }
+    if (id === "scan") { nativeCameraInput.current?.click(); return; }
     setTab(id);
     if (id === "orders") {
       orders.forEach((order) => acknowledgedOrderIds.current.add(order.orderId));
@@ -223,12 +239,13 @@ export default function Home() {
   }
 
   const nav = [
-    ["dashboard", "概要", "▦"], ["scan", "QR読取", "⌗"], ["orders", "発注管理", "⇄"],
+    ["dashboard", "概要", "▦"], ["scan", "カメラ", "◎"], ["orders", "発注管理", "⇄"],
     ["history", "履歴", "◷"], ["boards", "QR看板", "▤"], ["items", "品目", "□"],
   ];
 
   return (
     <div className={`app density-${settings.density}`} style={{ "--accent": settings.accent } as React.CSSProperties}>
+      <input ref={nativeCameraInput} className="nativeCameraInput" type="file" accept="image/*" capture="environment" aria-label="カメラでQRコードを撮影" onChange={(event) => void scanNativeCameraImage(event.target.files?.[0])}/>
       <aside className="sidebar">
         <div className="brand" aria-label="MATERIAL ORDER CONTROL"><span className="brandLogo"/><div className="brandControl"><span>MATERIAL</span><strong>ORDER CONTROL</strong></div></div>
         <nav>{nav.map(([id, label, icon]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => openTab(id)}><span>{icon}</span><span className="navLabel">{label}</span>{id === "orders" && unreadOrders > 0 && <b className="notificationBadge" aria-label={`未確認 ${unreadOrders}件`}>{unreadOrders > 99 ? "99+" : unreadOrders}</b>}</button>)}</nav>
