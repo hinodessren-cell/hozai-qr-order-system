@@ -46,6 +46,9 @@ test("contains the material ordering workflow", async () => {
   assert.match(styles, /\.iphoneScanner/);
   assert.match(styles, /height:100dvh/);
   assert.match(page, /発注取消/);
+  assert.match(page, /入荷待ちへ戻す/);
+  assert.match(styles, /@media print[\s\S]*border:0!important/);
+  assert.match(styles, /\.orderPointField/);
   assert.match(route, /payload\.action === "order"/);
   assert.match(route, /payload\.action === "status"/);
   assert.match(route, /payload\.action === "settings"/);
