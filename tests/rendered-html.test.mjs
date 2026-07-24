@@ -32,6 +32,7 @@ test("contains the material ordering workflow", async () => {
   assert.match(page, /function ItemEditor/);
   assert.match(page, /function InlineBoard/);
   assert.match(page, /padStart\(3, "0"\)/);
+  assert.match(page, /localeCompare\(b\.category/);
   assert.match(page, />品番<input/);
   assert.match(page, /function OptionsMenu/);
   assert.match(page, /発注点/);
@@ -72,12 +73,13 @@ test("contains the material ordering workflow", async () => {
 });
 
 test("ships the migrated database and QR assets", async () => {
-  const [schema, initialMigration, legacyMigration, workflowMigration, orderPointMigration, qrGenerator, serviceWorker, pwaRegister, qrFiles] = await Promise.all([
+  const [schema, initialMigration, legacyMigration, workflowMigration, orderPointMigration, boardNumberMigration, qrGenerator, serviceWorker, pwaRegister, qrFiles] = await Promise.all([
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("drizzle/0000_initial.sql", root), "utf8"),
     readFile(new URL("drizzle/0001_legacy_data.sql", root), "utf8"),
     readFile(new URL("drizzle/0002_order_workflow.sql", root), "utf8"),
     readFile(new URL("drizzle/0003_item_order_point.sql", root), "utf8"),
+    readFile(new URL("drizzle/0004_item_board_number.sql", root), "utf8"),
     readFile(new URL("scripts/generate_qr_assets.py", root), "utf8"),
     readFile(new URL("public/sw.js", root), "utf8"),
     readFile(new URL("app/pwa-register.tsx", root), "utf8"),
@@ -86,7 +88,10 @@ test("ships the migrated database and QR assets", async () => {
 
   assert.match(schema, /sqliteTable\("items"/);
   assert.match(schema, /orderPoint/);
+  assert.match(schema, /boardNumber/);
   assert.match(orderPointMigration, /ADD `order_point`/);
+  assert.match(boardNumberMigration, /ADD `board_number`/);
+  assert.match(boardNumberMigration, /SET `board_number` = `rowid`/);
   assert.match(schema, /sqliteTable\("orders"/);
   assert.match(schema, /sqliteTable\("app_settings"/);
   assert.match(initialMigration, /CREATE TABLE [`"]items[`"]/i);
@@ -97,6 +102,8 @@ test("ships the migrated database and QR assets", async () => {
   assert.match(serviceWorker, /request\.destination === "script"/);
   assert.match(pwaRegister, /updateViaCache: "none"/);
   assert.match(pwaRegister, /controllerchange/);
+  assert.match(pwaRegister, /x-app-update-check/);
+  assert.match(pwaRegister, /setInterval/);
   assert.match(qrGenerator, /QR_BASE_URL/);
   assert.match(qrGenerator, /\?item=/);
   assert.equal(qrFiles.filter((name) => name.endsWith(".svg")).length, 1512);

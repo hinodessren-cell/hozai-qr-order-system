@@ -5,14 +5,14 @@ import QrScannerEngine from "qr-scanner";
 import QRCode from "qrcode";
 
 type Status = "発注待ち" | "入荷待ち" | "入荷済み" | "取消";
-type Item = { id: string; code: string; name: string; category: string; unit: string; qty: number; orderPoint: number; location: string; memo: string };
+type Item = { id: string; code: string; name: string; category: string; unit: string; qty: number; orderPoint: number; boardNumber: number; location: string; memo: string };
 type Order = Item & { orderId: string; status: Status; orderedAt: string; purchaser: string };
 
 const initialItems: Item[] = [
-  { id: "HZ-2CE1D46BD51220", code: "712-30", name: "カッターマット", category: "ホットマーカ", unit: "set", qty: 5, orderPoint: 1, location: "工具棚 A-2", memo: "1set / 5組10個入" },
-  { id: "HZ-80C1257B60B683", code: "LW-104", name: "マーカーラベル 幅4mm", category: "ホットマーカ", unit: "巻", qty: 10, orderPoint: 2, location: "資材棚 B-1", memo: "後継品 PVCW0499" },
-  { id: "HZ-913C12C91D4516", code: "LW-106", name: "マーカーラベル 幅6mm", category: "ホットマーカ", unit: "巻", qty: 10, orderPoint: 2, location: "資材棚 B-1", memo: "10巻 / ロット" },
-  { id: "HZ-A9FCE5E4BF7295", code: "LW-108", name: "マーカーラベル 幅8mm", category: "ホットマーカ", unit: "巻", qty: 10, orderPoint: 2, location: "資材棚 B-2", memo: "10巻 / ロット" },
+  { id: "HZ-2CE1D46BD51220", code: "712-30", name: "カッターマット", category: "ホットマーカ", unit: "set", qty: 5, orderPoint: 1, boardNumber: 1, location: "工具棚 A-2", memo: "1set / 5組10個入" },
+  { id: "HZ-80C1257B60B683", code: "LW-104", name: "マーカーラベル 幅4mm", category: "ホットマーカ", unit: "巻", qty: 10, orderPoint: 2, boardNumber: 2, location: "資材棚 B-1", memo: "後継品 PVCW0499" },
+  { id: "HZ-913C12C91D4516", code: "LW-106", name: "マーカーラベル 幅6mm", category: "ホットマーカ", unit: "巻", qty: 10, orderPoint: 2, boardNumber: 3, location: "資材棚 B-1", memo: "10巻 / ロット" },
+  { id: "HZ-A9FCE5E4BF7295", code: "LW-108", name: "マーカーラベル 幅8mm", category: "ホットマーカ", unit: "巻", qty: 10, orderPoint: 2, boardNumber: 4, location: "資材棚 B-2", memo: "10巻 / ロット" },
 ];
 
 const initialOrders: Order[] = [
@@ -281,10 +281,11 @@ function OrderBoard({ orders, onAdvance, onCancel, onReturn, onViewStatus, statu
 
 function QrBoards({ items, columns, width, height, save }: { items: Item[]; columns: number; width: number; height: number; save: (item: Item) => Promise<void> }) {
   const boardStyle = { "--board-width": `${width}mm`, "--board-height": `${height}mm`, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } as React.CSSProperties;
-  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">文字をクリックすると、その場で入力できます。Enterまたは枠外のクリックで保存します。印刷サイズ：{width}×{height}mm</span></div><button className="primary" onClick={() => window.print()}>印刷プレビュー</button></div><div className="boards" style={boardStyle}>{items.map((item, index) => <InlineBoard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.orderPoint}:${item.location}:${item.memo}`} item={item} boardNumber={index + 1} save={save} />)}</div></section>;
+  const sortedItems = [...items].sort((a, b) => a.category.localeCompare(b.category, "ja", { numeric: true, sensitivity: "base" }) || a.name.localeCompare(b.name, "ja", { numeric: true, sensitivity: "base" }));
+  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">カテゴリ・品名が近い順に表示します。No.は固定で、新規品目には末尾番号を自動採番します。印刷サイズ：{width}×{height}mm</span></div><button className="primary" onClick={() => window.print()}>印刷プレビュー</button></div><div className="boards" style={boardStyle}>{sortedItems.map((item) => <InlineBoard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.orderPoint}:${item.boardNumber}:${item.location}:${item.memo}`} item={item} save={save} />)}</div></section>;
 }
 
-function InlineBoard({ item, boardNumber, save }: { item: Item; boardNumber: number; save: (item: Item) => Promise<void> }) {
+function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise<void> }) {
   const [draft, setDraft] = useState(item);
   const commit = async () => {
     if (JSON.stringify(draft) === JSON.stringify(item)) return;
@@ -292,7 +293,7 @@ function InlineBoard({ item, boardNumber, save }: { item: Item; boardNumber: num
   };
   const keyDown = (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") event.currentTarget.blur(); };
   return <article className="board"><FakeQr value={item.id}/><div className="inlineBoardFields">
-    <div className="boardTitleLine"><input className="inlineName" aria-label="品名" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/><strong className="boardNumber">No.{String(boardNumber).padStart(3, "0")}</strong></div>
+    <div className="boardTitleLine"><input className="inlineName" aria-label="品名" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/><strong className="boardNumber">No.{String(item.boardNumber).padStart(3, "0")}</strong></div>
     <label>品番<input aria-label="品番" value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
     <input aria-label="備考" value={draft.memo} onChange={(event) => setDraft({ ...draft, memo: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>
     <div className="inlineMeta"><label>⌖ <input aria-label="保管場所" value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label>発注数量 <input className="inlineQty" aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/><input className="inlineUnit" aria-label="単位" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label className="orderPointField">発注点 <input className="inlineQty" aria-label="発注点" type="number" min="0" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: Math.max(0, Number(event.target.value) || 0) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{draft.unit}</label></div>
@@ -412,7 +413,7 @@ function formatOrderDate(value: string) {
 
 function ItemEditor({ item, close, save }: { item: Item | null; close: () => void; save: (item: Item, isNew: boolean) => Promise<void> }) {
   const isNew = !item;
-  const [draft, setDraft] = useState<Item>(item ?? { id: "", code: "", name: "", category: "", unit: "個", qty: 1, orderPoint: 1, location: "", memo: "" });
+  const [draft, setDraft] = useState<Item>(item ?? { id: "", code: "", name: "", category: "", unit: "個", qty: 1, orderPoint: 1, boardNumber: 0, location: "", memo: "" });
   const [saving, setSaving] = useState(false);
   const update = (key: keyof Item, value: string | number) => setDraft((current) => ({ ...current, [key]: value }));
   const submit = async () => {

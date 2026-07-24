@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, max } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { buildPushPayload, type PushSubscription } from "@block65/webcrypto-web-push";
 import { getChatGPTUser } from "../../chatgpt-auth";
@@ -168,11 +168,14 @@ export async function POST(request: Request) {
     };
     if (payload.action === "item-create") {
       const id = `HZ-${crypto.randomUUID().replaceAll("-", "").slice(0, 14).toUpperCase()}`;
-      await db.insert(items).values({ id, ...values });
-      return Response.json({ ok: true, item: serializeItem({ id, ...values }) });
+      const [numberRow] = await db.select({ highest: max(items.boardNumber) }).from(items);
+      const boardNumber = (numberRow?.highest ?? 0) + 1;
+      await db.insert(items).values({ id, boardNumber, ...values });
+      return Response.json({ ok: true, item: serializeItem({ id, boardNumber, ...values }) });
     }
     await db.update(items).set(values).where(eq(items.id, payload.itemId!));
-    return Response.json({ ok: true, item: serializeItem({ id: payload.itemId!, ...values }) });
+    const [updatedItem] = await db.select().from(items).where(eq(items.id, payload.itemId!)).limit(1);
+    return Response.json({ ok: true, item: updatedItem ? serializeItem(updatedItem) : null });
   }
 
   return badRequest("未対応の操作です。");
