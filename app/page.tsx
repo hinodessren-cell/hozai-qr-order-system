@@ -281,10 +281,10 @@ function OrderBoard({ orders, onAdvance, onCancel, onReturn, onViewStatus, statu
 
 function QrBoards({ items, columns, width, height, save }: { items: Item[]; columns: number; width: number; height: number; save: (item: Item) => Promise<void> }) {
   const boardStyle = { "--board-width": `${width}mm`, "--board-height": `${height}mm`, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } as React.CSSProperties;
-  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">文字をクリックすると、その場で入力できます。Enterまたは枠外のクリックで保存します。印刷サイズ：{width}×{height}mm</span></div><button className="primary" onClick={() => window.print()}>印刷プレビュー</button></div><div className="boards" style={boardStyle}>{items.map((item) => <InlineBoard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.orderPoint}:${item.location}:${item.memo}`} item={item} save={save} />)}</div></section>;
+  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">文字をクリックすると、その場で入力できます。Enterまたは枠外のクリックで保存します。印刷サイズ：{width}×{height}mm</span></div><button className="primary" onClick={() => window.print()}>印刷プレビュー</button></div><div className="boards" style={boardStyle}>{items.map((item, index) => <InlineBoard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.orderPoint}:${item.location}:${item.memo}`} item={item} boardNumber={index + 1} save={save} />)}</div></section>;
 }
 
-function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise<void> }) {
+function InlineBoard({ item, boardNumber, save }: { item: Item; boardNumber: number; save: (item: Item) => Promise<void> }) {
   const [draft, setDraft] = useState(item);
   const commit = async () => {
     if (JSON.stringify(draft) === JSON.stringify(item)) return;
@@ -292,8 +292,8 @@ function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise
   };
   const keyDown = (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") event.currentTarget.blur(); };
   return <article className="board"><FakeQr value={item.id}/><div className="inlineBoardFields">
-    <label>No.<input aria-label="品番" value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
-    <input className="inlineName" aria-label="品名" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>
+    <div className="boardTitleLine"><input className="inlineName" aria-label="品名" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/><strong className="boardNumber">No.{String(boardNumber).padStart(3, "0")}</strong></div>
+    <label>品番<input aria-label="品番" value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
     <input aria-label="備考" value={draft.memo} onChange={(event) => setDraft({ ...draft, memo: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>
     <div className="inlineMeta"><label>⌖ <input aria-label="保管場所" value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label>発注数量 <input className="inlineQty" aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/><input className="inlineUnit" aria-label="単位" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label className="orderPointField">発注点 <input className="inlineQty" aria-label="発注点" type="number" min="0" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: Math.max(0, Number(event.target.value) || 0) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{draft.unit}</label></div>
     <b>在庫が少なくなりましたら発注してください。</b>

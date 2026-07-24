@@ -31,6 +31,8 @@ test("contains the material ordering workflow", async () => {
   assert.match(page, /formatOrderDate/);
   assert.match(page, /function ItemEditor/);
   assert.match(page, /function InlineBoard/);
+  assert.match(page, /padStart\(3, "0"\)/);
+  assert.match(page, />品番<input/);
   assert.match(page, /function OptionsMenu/);
   assert.match(page, /発注点/);
   assert.match(page, /setInterval/);
