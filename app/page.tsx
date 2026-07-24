@@ -5,14 +5,14 @@ import QrScannerEngine from "qr-scanner";
 import QRCode from "qrcode";
 
 type Status = "発注待ち" | "入荷待ち" | "入荷済み" | "取消";
-type Item = { id: string; code: string; name: string; category: string; unit: string; qty: number; location: string; memo: string };
+type Item = { id: string; code: string; name: string; category: string; unit: string; qty: number; orderPoint: number; location: string; memo: string };
 type Order = Item & { orderId: string; status: Status; orderedAt: string; purchaser: string };
 
 const initialItems: Item[] = [
-  { id: "HZ-2CE1D46BD51220", code: "712-30", name: "カッターマット", category: "ホットマーカ", unit: "set", qty: 5, location: "工具棚 A-2", memo: "1set / 5組10個入" },
-  { id: "HZ-80C1257B60B683", code: "LW-104", name: "マーカーラベル 幅4mm", category: "ホットマーカ", unit: "巻", qty: 10, location: "資材棚 B-1", memo: "後継品 PVCW0499" },
-  { id: "HZ-913C12C91D4516", code: "LW-106", name: "マーカーラベル 幅6mm", category: "ホットマーカ", unit: "巻", qty: 10, location: "資材棚 B-1", memo: "10巻 / ロット" },
-  { id: "HZ-A9FCE5E4BF7295", code: "LW-108", name: "マーカーラベル 幅8mm", category: "ホットマーカ", unit: "巻", qty: 10, location: "資材棚 B-2", memo: "10巻 / ロット" },
+  { id: "HZ-2CE1D46BD51220", code: "712-30", name: "カッターマット", category: "ホットマーカ", unit: "set", qty: 5, orderPoint: 1, location: "工具棚 A-2", memo: "1set / 5組10個入" },
+  { id: "HZ-80C1257B60B683", code: "LW-104", name: "マーカーラベル 幅4mm", category: "ホットマーカ", unit: "巻", qty: 10, orderPoint: 2, location: "資材棚 B-1", memo: "後継品 PVCW0499" },
+  { id: "HZ-913C12C91D4516", code: "LW-106", name: "マーカーラベル 幅6mm", category: "ホットマーカ", unit: "巻", qty: 10, orderPoint: 2, location: "資材棚 B-1", memo: "10巻 / ロット" },
+  { id: "HZ-A9FCE5E4BF7295", code: "LW-108", name: "マーカーラベル 幅8mm", category: "ホットマーカ", unit: "巻", qty: 10, orderPoint: 2, location: "資材棚 B-2", memo: "10巻 / ロット" },
 ];
 
 const initialOrders: Order[] = [
@@ -240,7 +240,7 @@ export default function Home() {
         {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
         {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} showMemo={settings.showMemo} title="すべての履歴" />}
 
-        {tab === "items" && <section><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS</p><h2>品目マスター</h2><span className="editHint">文字をタップすると、その場で入力できます。Enterまたは枠外のタップで保存します。</span></div><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div></section>}
+        {tab === "items" && <section><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS</p><h2>品目マスター</h2><span className="editHint">文字をタップすると、その場で入力できます。Enterまたは枠外のタップで保存します。</span></div><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div></section>}
 
         {tab === "boards" && <QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} />}
       </main>
@@ -257,20 +257,20 @@ export default function Home() {
 }
 
 function OrderList({ orders, onAdvance, onCancel, showMemo, title }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; showMemo: boolean; title: string }) {
-  return <section className="orderSection"><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>{title}</h2></div></div><div className="orderList">{orders.map((o) => <article className="orderRow" key={o.orderId}><span className={`status s-${o.status}`}>{o.status}</span><div className="orderMain"><small>{o.code} ・ {o.category}</small><h3>{o.name}</h3>{showMemo && <p>{o.memo}</p>}</div><div className="orderMeta"><small>数量</small><strong>{o.qty}<i>{o.unit}</i></strong></div><div className="orderMeta"><small>発注者</small><b>{o.purchaser}</b><span>{o.orderedAt}</span></div>{o.status === "発注待ち" || o.status === "入荷待ち" ? <div className="orderActions"><button className="next" onClick={() => onAdvance(o.orderId)}>{o.status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button><button className="cancelOrder" onClick={() => onCancel(o.orderId)}>発注取消</button></div> : <span className={`done ${o.status === "取消" ? "cancelled" : ""}`}>{o.status === "取消" ? "× 取消" : "✓ 入荷済み"}</span>}</article>)}</div></section>;
+  return <section className="orderSection"><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>{title}</h2></div></div><div className="orderList">{orders.map((o) => <article className="orderRow" key={o.orderId}>{(o.status === "発注待ち" || o.status === "入荷待ち") && <OptionsMenu label={`${o.name}の操作`}><button onClick={() => onCancel(o.orderId)}>発注取消</button></OptionsMenu>}<span className={`status s-${o.status}`}>{o.status}</span><div className="orderMain"><small>{o.code} ・ {o.category}</small><h3>{o.name}</h3>{showMemo && <p>{o.memo}</p>}</div><div className="orderMeta"><small>数量</small><strong>{o.qty}<i>{o.unit}</i></strong></div><div className="orderMeta"><small>発注者</small><b>{o.purchaser}</b><span>{o.orderedAt}</span></div>{o.status === "発注待ち" || o.status === "入荷待ち" ? <button className="next" onClick={() => onAdvance(o.orderId)}>{o.status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button> : <span className={`done ${o.status === "取消" ? "cancelled" : ""}`}>{o.status === "取消" ? "× 取消" : "✓ 入荷済み"}</span>}</article>)}</div></section>;
 }
 
 function OrderBoard({ orders, onAdvance, onCancel, onViewStatus, statusAlerts, showMemo }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; onViewStatus: (status: "発注待ち" | "入荷待ち" | "入荷済み") => void; statusAlerts: Record<"発注待ち" | "入荷待ち" | "入荷済み", number>; showMemo: boolean }) {
   const statuses: Exclude<Status, "取消">[] = ["発注待ち", "入荷待ち", "入荷済み"];
   return <section><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>発注・入荷状況</h2></div></div><div className="pipelineBoard">{statuses.map((status) => {
     const statusOrders = orders.filter((order) => order.status === status);
-    return <section className="pipelineColumn" key={status}><header onClick={() => onViewStatus(status)}><h3>{status}</h3>{statusAlerts[status] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<span>{statusOrders.length}</span></header><div>{statusOrders.map((order) => <article className="pipelineCard" key={order.orderId}><small>{order.code} ・ {order.category}</small><h4>{order.name}</h4>{showMemo && <p>{order.memo}</p>}<dl><div><dt>数量</dt><dd>{order.qty}{order.unit}</dd></div><div><dt>発注者</dt><dd>{order.purchaser}</dd></div></dl>{status !== "入荷済み" && <div className="orderActions"><button className="next" onClick={() => onAdvance(order.orderId)}>{status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button><button className="cancelOrder" onClick={() => onCancel(order.orderId)}>発注取消</button></div>}</article>)}</div></section>;
+    return <section className="pipelineColumn" key={status}><header onClick={() => onViewStatus(status)}><h3>{status}</h3>{statusAlerts[status] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<span>{statusOrders.length}</span></header><div>{statusOrders.map((order) => <article className="pipelineCard" key={order.orderId}>{status !== "入荷済み" && <OptionsMenu label={`${order.name}の操作`}><button onClick={() => onCancel(order.orderId)}>発注取消</button></OptionsMenu>}<small>{order.code} ・ {order.category}</small><h4>{order.name}</h4>{showMemo && <p>{order.memo}</p>}<dl><div><dt>数量</dt><dd>{order.qty}{order.unit}</dd></div><div><dt>発注者</dt><dd>{order.purchaser}</dd></div></dl>{status !== "入荷済み" && <button className="next pipelineNext" onClick={() => onAdvance(order.orderId)}>{status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button>}</article>)}</div></section>;
   })}</div></section>;
 }
 
 function QrBoards({ items, columns, width, height, save }: { items: Item[]; columns: number; width: number; height: number; save: (item: Item) => Promise<void> }) {
   const boardStyle = { "--board-width": `${width}mm`, "--board-height": `${height}mm`, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } as React.CSSProperties;
-  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">文字をクリックすると、その場で入力できます。Enterまたは枠外のクリックで保存します。印刷サイズ：{width}×{height}mm</span></div><button className="primary" onClick={() => window.print()}>印刷プレビュー</button></div><div className="boards" style={boardStyle}>{items.map((item) => <InlineBoard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.location}:${item.memo}`} item={item} save={save} />)}</div></section>;
+  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">文字をクリックすると、その場で入力できます。Enterまたは枠外のクリックで保存します。印刷サイズ：{width}×{height}mm</span></div><button className="primary" onClick={() => window.print()}>印刷プレビュー</button></div><div className="boards" style={boardStyle}>{items.map((item) => <InlineBoard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.orderPoint}:${item.location}:${item.memo}`} item={item} save={save} />)}</div></section>;
 }
 
 function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise<void> }) {
@@ -284,7 +284,7 @@ function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise
     <label>No.<input aria-label="品番" value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
     <input className="inlineName" aria-label="品名" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>
     <input aria-label="備考" value={draft.memo} onChange={(event) => setDraft({ ...draft, memo: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>
-    <div className="inlineMeta"><label>⌖ <input aria-label="保管場所" value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label>発注数量 <input className="inlineQty" aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/><input className="inlineUnit" aria-label="単位" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label></div>
+    <div className="inlineMeta"><label>⌖ <input aria-label="保管場所" value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label>発注数量 <input className="inlineQty" aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/><input className="inlineUnit" aria-label="単位" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label>発注点 <input className="inlineQty" aria-label="発注点" type="number" min="0" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: Math.max(0, Number(event.target.value) || 0) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{draft.unit}</label></div>
     <b>在庫が少なくなりましたら発注してください。</b>
   </div></article>;
 }
@@ -303,9 +303,14 @@ function InlineItemCard({ item, showLocation, save, edit, order }: { item: Item;
     {field("name", "品名", "inlineItemName")}
     {showLocation && <label className="inlineItemLocation">⌖ {field("location", "保管場所")}</label>}
     {field("memo", "備考", "inlineItemMemo")}
-    <label className="inlineItemQuantity">発注数量 <input aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</label>
-    <div className="itemActions"><button className="outline" onClick={edit}>詳細編集</button><button className="primary" onClick={order}>発注する</button></div>
+    <div className="inlineItemNumbers"><label>発注数量 <input aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</label><label>発注点 <input aria-label="発注点" type="number" min="0" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: Math.max(0, Number(event.target.value) || 0) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{draft.unit}</label></div>
+    <OptionsMenu label={`${item.name}の操作`}><button onClick={edit}>詳細編集</button></OptionsMenu>
+    <div className="itemActions"><button className="primary" onClick={order}>発注する</button></div>
   </article>;
+}
+
+function OptionsMenu({ label, children }: { label: string; children: React.ReactNode }) {
+  return <details className="optionsMenu"><summary aria-label={label}>•••</summary><div>{children}</div></details>;
 }
 
 function FakeQr({ value }: { value: string }) {
@@ -396,7 +401,7 @@ function formatOrderDate(value: string) {
 
 function ItemEditor({ item, close, save }: { item: Item | null; close: () => void; save: (item: Item, isNew: boolean) => Promise<void> }) {
   const isNew = !item;
-  const [draft, setDraft] = useState<Item>(item ?? { id: "", code: "", name: "", category: "", unit: "個", qty: 1, location: "", memo: "" });
+  const [draft, setDraft] = useState<Item>(item ?? { id: "", code: "", name: "", category: "", unit: "個", qty: 1, orderPoint: 1, location: "", memo: "" });
   const [saving, setSaving] = useState(false);
   const update = (key: keyof Item, value: string | number) => setDraft((current) => ({ ...current, [key]: value }));
   const submit = async () => {
@@ -404,7 +409,7 @@ function ItemEditor({ item, close, save }: { item: Item | null; close: () => voi
     setSaving(true);
     try { await save(draft, isNew); } catch (error) { showRequestError(error); setSaving(false); }
   };
-  return <div className="modalBackdrop" onClick={close}><section className="orderModal itemEditor" onClick={(event) => event.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">MASTER ITEM</p><h2>{isNew ? "新規品目登録" : "品目を編集"}</h2><label>品番（必須）<input autoFocus value={draft.code} onChange={(event) => update("code", event.target.value)} /></label><label>品名（必須）<input value={draft.name} onChange={(event) => update("name", event.target.value)} /></label><div className="editorTwo"><label>カテゴリ<input value={draft.category} onChange={(event) => update("category", event.target.value)} /></label><label>保管場所<input value={draft.location} onChange={(event) => update("location", event.target.value)} /></label></div><div className="editorTwo"><label>発注数量<input type="number" min="1" max="10000" value={draft.qty} onChange={(event) => update("qty", Math.max(1, Number(event.target.value) || 1))} /></label><label>単位<input value={draft.unit} onChange={(event) => update("unit", event.target.value)} /></label></div><label>備考<textarea value={draft.memo} onChange={(event) => update("memo", event.target.value)} /></label><button className="primary wide" disabled={saving || !draft.code.trim() || !draft.name.trim()} onClick={() => void submit()}>{saving ? "保存中…" : isNew ? "この品目を登録" : "変更を保存"}</button></section></div>;
+  return <div className="modalBackdrop" onClick={close}><section className="orderModal itemEditor" onClick={(event) => event.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">MASTER ITEM</p><h2>{isNew ? "新規品目登録" : "品目を編集"}</h2><label>品番（必須）<input autoFocus value={draft.code} onChange={(event) => update("code", event.target.value)} /></label><label>品名（必須）<input value={draft.name} onChange={(event) => update("name", event.target.value)} /></label><div className="editorTwo"><label>カテゴリ<input value={draft.category} onChange={(event) => update("category", event.target.value)} /></label><label>保管場所<input value={draft.location} onChange={(event) => update("location", event.target.value)} /></label></div><div className="editorTwo"><label>発注数量<input type="number" min="1" max="10000" value={draft.qty} onChange={(event) => update("qty", Math.max(1, Number(event.target.value) || 1))} /></label><label>発注点<input type="number" min="0" max="10000" value={draft.orderPoint} onChange={(event) => update("orderPoint", Math.max(0, Number(event.target.value) || 0))} /></label></div><label>単位<input value={draft.unit} onChange={(event) => update("unit", event.target.value)} /></label><label>備考<textarea value={draft.memo} onChange={(event) => update("memo", event.target.value)} /></label><button className="primary wide" disabled={saving || !draft.code.trim() || !draft.name.trim()} onClick={() => void submit()}>{saving ? "保存中…" : isNew ? "この品目を登録" : "変更を保存"}</button></section></div>;
 }
 
 function SettingsPanel({ settings, setSettings, pushStatus, enableNotifications, close, save }: { settings: typeof defaultSettings; setSettings: React.Dispatch<React.SetStateAction<typeof defaultSettings>>; pushStatus: string; enableNotifications: () => Promise<void>; close: () => void; save: () => void }) {

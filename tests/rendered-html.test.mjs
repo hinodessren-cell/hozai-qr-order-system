@@ -31,6 +31,8 @@ test("contains the material ordering workflow", async () => {
   assert.match(page, /formatOrderDate/);
   assert.match(page, /function ItemEditor/);
   assert.match(page, /function InlineBoard/);
+  assert.match(page, /function OptionsMenu/);
+  assert.match(page, /発注点/);
   assert.match(page, /setInterval/);
   assert.match(page, /new Notification/);
   assert.match(page, /acknowledged-orders/);
@@ -54,6 +56,7 @@ test("contains the material ordering workflow", async () => {
   assert.doesNotMatch(route.match(/if \(payload\.action === "push-subscribe"\)[\s\S]*?return Response\.json\(\{ ok: true \}\);/)?.[0] ?? "", /requireAuthenticatedUser/);
   assert.match(route, /duplicate_active_order/);
   assert.match(route, /qty: orderQty/);
+  assert.match(route, /orderPoint/);
   assert.match(route, /Number\.isSafeInteger\(quantity\)/);
   assert.match(route, /orderStatuses\.includes/);
   assert.match(route, /getChatGPTUser/);
@@ -64,11 +67,12 @@ test("contains the material ordering workflow", async () => {
 });
 
 test("ships the migrated database and QR assets", async () => {
-  const [schema, initialMigration, legacyMigration, workflowMigration, qrGenerator, serviceWorker, pwaRegister, qrFiles] = await Promise.all([
+  const [schema, initialMigration, legacyMigration, workflowMigration, orderPointMigration, qrGenerator, serviceWorker, pwaRegister, qrFiles] = await Promise.all([
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("drizzle/0000_initial.sql", root), "utf8"),
     readFile(new URL("drizzle/0001_legacy_data.sql", root), "utf8"),
     readFile(new URL("drizzle/0002_order_workflow.sql", root), "utf8"),
+    readFile(new URL("drizzle/0003_item_order_point.sql", root), "utf8"),
     readFile(new URL("scripts/generate_qr_assets.py", root), "utf8"),
     readFile(new URL("public/sw.js", root), "utf8"),
     readFile(new URL("app/pwa-register.tsx", root), "utf8"),
@@ -76,6 +80,8 @@ test("ships the migrated database and QR assets", async () => {
   ]);
 
   assert.match(schema, /sqliteTable\("items"/);
+  assert.match(schema, /orderPoint/);
+  assert.match(orderPointMigration, /ADD `order_point`/);
   assert.match(schema, /sqliteTable\("orders"/);
   assert.match(schema, /sqliteTable\("app_settings"/);
   assert.match(initialMigration, /CREATE TABLE [`"]items[`"]/i);

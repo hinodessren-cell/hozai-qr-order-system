@@ -160,9 +160,11 @@ export async function POST(request: Request) {
     if (!code || !name) return badRequest("品番と品名は必須です。");
     const orderQty = Number(fields.qty);
     if (!Number.isSafeInteger(orderQty) || orderQty < 1 || orderQty > 10_000) return badRequest("発注数量は1～10000の整数で指定してください。");
+    const orderPoint = Number(fields.orderPoint);
+    if (!Number.isSafeInteger(orderPoint) || orderPoint < 0 || orderPoint > 10_000) return badRequest("発注点は0～10000の整数で指定してください。");
     const values = {
       code, name, category: textValue("category", 100), unit: textValue("unit", 30) || "個",
-      orderQty, location: textValue("location", 200), memo: textValue("memo", 500),
+      orderQty, orderPoint, location: textValue("location", 200), memo: textValue("memo", 500),
     };
     if (payload.action === "item-create") {
       const id = `HZ-${crypto.randomUUID().replaceAll("-", "").slice(0, 14).toUpperCase()}`;
