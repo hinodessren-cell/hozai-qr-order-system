@@ -219,18 +219,21 @@ button:disabled{cursor:wait;opacity:.68}
 }
 @media print{
   .printItemCards{
-    width:186mm!important;
-    max-width:186mm!important;
-    grid-template-columns:repeat(3,60mm)!important;
-    grid-auto-rows:40mm!important;
+    width:auto!important;
+    max-width:190mm!important;
+    grid-template-columns:repeat(var(--board-columns),var(--board-width))!important;
+    grid-auto-rows:var(--board-height)!important;
     column-gap:3mm!important;
-    row-gap:3mm!important
+    row-gap:3mm!important;
+    break-after:page!important;
+    page-break-after:always!important
   }
+  .printItemCards:last-child{break-after:auto!important;page-break-after:auto!important}
   .printItemCards .inlineItemCard{
     box-sizing:border-box!important;
-    width:60mm!important;
-    height:40mm!important;
-    min-height:40mm!important;
+    width:var(--board-width)!important;
+    height:var(--board-height)!important;
+    min-height:var(--board-height)!important;
     padding:2mm!important;
     border-radius:0!important;
     outline:.3mm dashed #59616c!important;
