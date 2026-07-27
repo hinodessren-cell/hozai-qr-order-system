@@ -1,4 +1,4 @@
-const CACHE_NAME = "hozai-qr-order-v5";
+const CACHE_NAME = "hozai-qr-order-v6";
 const APP_ASSETS = [
   "/offline.html",
   "/manifest.webmanifest",
@@ -45,7 +45,17 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.destination === "script" || request.destination === "style" || request.destination === "worker") {
-    event.respondWith(fetch(request));
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const copy = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(() => caches.match(request)),
+    );
     return;
   }
 

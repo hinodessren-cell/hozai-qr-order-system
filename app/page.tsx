@@ -50,6 +50,7 @@ export default function Home() {
   const acknowledgedStatusEvents = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    setIpadDevice(isIPad());
     let active = true;
     const refresh = async (initial = false) => {
       const data = await fetch("/api/state", { cache: "no-store" }).then((response) => response.ok ? response.json() : null).catch(() => null);
@@ -117,6 +118,10 @@ export default function Home() {
     window.addEventListener("focus", onVisible);
     return () => { active = false; window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("focus", onVisible); };
   }, []);
+
+  useEffect(() => {
+    if (ipadDevice && settings.ipadFullscreen) setTab("orders");
+  }, [ipadDevice, settings.ipadFullscreen]);
 
   const filtered = useMemo(() => orders.filter((o) => `${o.code} ${o.name} ${o.category} ${o.purchaser}`.toLowerCase().includes(query.toLowerCase())), [orders, query]);
   const counts = (status: Status) => orders.filter((o) => o.status === status).length;
@@ -368,7 +373,6 @@ function OptionsMenu({ label, children }: { label: string; children: React.React
 function FakeQr({ value }: { value: string }) {
   const [source, setSource] = useState(`/qr/${encodeURIComponent(value)}.svg`);
   useEffect(() => {
-    setIpadDevice(isIPad());
     let active = true;
     const url = `${window.location.origin}/?item=${encodeURIComponent(value)}`;
     void QRCode.toDataURL(url, { errorCorrectionLevel: "M", margin: 1, width: 320 }).then((generated) => { if (active) setSource(generated); });
@@ -398,10 +402,6 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
     const item = itemsRef.current.find((row) => row.id.toLowerCase() === id.toLowerCase());
     if (item) foundRef.current(item); else setMessage("該当する品目が見つかりません。管理番号をご確認ください。");
   }, []);
-
-  useEffect(() => {
-    if (ipadDevice && settings.ipadFullscreen) setTab("orders");
-  }, [ipadDevice, settings.ipadFullscreen]);
 
   useEffect(() => {
     let scanner: QrScannerEngine | undefined;

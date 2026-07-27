@@ -7,7 +7,7 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-const APP_VERSION = "5.0";
+const APP_VERSION = "6.0";
 
 export default function PwaRegister() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
@@ -64,7 +64,7 @@ export default function PwaRegister() {
         });
       });
     };
-    void navigator.serviceWorker.register("/sw.js?v=5", { updateViaCache: "none" }).then((current) => {
+    void navigator.serviceWorker.register("/sw.js?v=6", { updateViaCache: "none" }).then((current) => {
       if (!active) return;
       setRegistration(current);
       observe(current);
