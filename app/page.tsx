@@ -36,6 +36,7 @@ export default function Home() {
   const [settings, setSettings] = useState(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsNotice, setSettingsNotice] = useState("");
+  const [printRequested, setPrintRequested] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState<Item | "new" | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
@@ -257,6 +258,13 @@ export default function Home() {
     }
   }
 
+  async function startQrBoardPrint() {
+    setPrintRequested(true);
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())));
+    await printQrBoards();
+    setPrintRequested(false);
+  }
+
   const nav = [
     ["dashboard", "概要", "▦"], ["scan", "カメラ", "◎"], ["orders", "発注管理", "⇄"],
     ["history", "履歴", "◷"], ["items", "品目・看板", "▤"],
@@ -286,7 +294,7 @@ export default function Home() {
         {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
         {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="すべての履歴" />}
 
-        {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><button className="outline" onClick={() => void printQrBoards()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div><div className="integratedPrintBoards"><QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} /></div></section>}
+        {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><button className="outline" onClick={() => void startQrBoardPrint()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div>{printRequested && <div className="integratedPrintBoards"><QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} /></div>}</section>}
       </main>
       {ipadDevice && settings.ipadFullscreen && <div className="ipadFullscreenControls"><button onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button><button onClick={() => { const next = { ...settings, ipadFullscreen: false }; setSettings(next); void persistSettings(next).then(() => { setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); }).catch(showRequestError); }}>全画面を解除</button></div>}
       {settingsNotice && <div className="settingsToast" role="status">{settingsNotice}</div>}
@@ -317,7 +325,24 @@ function OrderBoard({ orders, onAdvance, onCancel, onReturn, onReturnToOrdered, 
 function QrBoards({ items, columns, width, height, save }: { items: Item[]; columns: number; width: number; height: number; save: (item: Item) => Promise<void> }) {
   const boardStyle = { "--board-width": `${width}mm`, "--board-height": `${height}mm`, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } as React.CSSProperties;
   const sortedItems = [...items].sort((a, b) => a.category.localeCompare(b.category, "ja", { numeric: true, sensitivity: "base" }) || a.name.localeCompare(b.name, "ja", { numeric: true, sensitivity: "base" }));
-  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">品目ページの看板と同じレイアウトで印刷します。カテゴリ・品名が近い順に並びます。</span></div><button className="primary" onClick={() => void printQrBoards()}>印刷プレビュー</button></div><div className="boards printItemCards" style={boardStyle}>{sortedItems.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.orderPoint}:${item.boardNumber}:${item.location}:${item.memo}`} item={item} showLocation save={save} edit={() => undefined} order={() => undefined} />)}</div></section>;
+  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">品目ページの看板と同じレイアウトで印刷します。カテゴリ・品名が近い順に並びます。</span></div></div><div className="boards printItemCards" style={boardStyle}>{sortedItems.map((item) => <PrintItemCard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.orderPoint}:${item.boardNumber}:${item.location}:${item.memo}`} item={item} />)}</div></section>;
+}
+
+function PrintItemCard({ item }: { item: Item }) {
+  const qrFallback = async (event: React.SyntheticEvent<HTMLImageElement>) => {
+    const image = event.currentTarget;
+    image.onerror = null;
+    image.src = await QRCode.toDataURL(`${window.location.origin}/?item=${encodeURIComponent(item.id)}`, { errorCorrectionLevel: "M", margin: 1, width: 320 });
+  };
+  return <article className="itemCard inlineItemCard">
+    <label className="inlineItemField"><span>カテゴリ</span><input className="inlineItemCategory" readOnly value={item.category}/></label>
+    <div className="itemCardQr"><img className="fakeQr" src={`/qr/${encodeURIComponent(item.id)}.svg`} onError={(event) => void qrFallback(event)} alt=""/></div>
+    <label className="inlineItemField"><span>品番</span><input className="inlineItemCode" readOnly value={item.code}/></label>
+    <label className="inlineItemField"><span>品名</span><input className="inlineItemName" readOnly value={item.name}/></label>
+    <label className="inlineItemMemoField"><span>保管場所</span><input className="inlineItemMemo" readOnly value={item.location}/></label>
+    <label className="inlineItemMemoField"><span>備考</span><input className="inlineItemMemo" readOnly value={item.memo}/></label>
+    <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><input readOnly value={item.qty}/><input className="inlineItemUnit" readOnly value={item.unit}/></span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><input readOnly value={item.orderPoint}/><span className="fixedUnit">{item.unit}</span></span></label></div>
+  </article>;
 }
 
 function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise<void> }) {
@@ -518,10 +543,10 @@ function isIPad() {
 }
 
 async function printQrBoards() {
-  const deadline = Date.now() + 3000;
+  const deadline = Date.now() + 800;
   while (Date.now() < deadline) {
     const images = Array.from(document.querySelectorAll<HTMLImageElement>(".integratedPrintBoards .fakeQr"));
-    if (images.length > 0 && images.every((image) => image.src.startsWith("data:image/") && image.complete && image.naturalWidth > 0)) break;
+    if (images.length > 0 && images.every((image) => image.complete && image.naturalWidth > 0)) break;
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
   }
   await document.fonts?.ready;
