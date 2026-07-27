@@ -171,6 +171,7 @@ export default function Home() {
     setSelectedItem(null); openTab("orders");
     try {
       await postState({ action: "order", itemId: item.id, orderId: order.orderId, quantity: qty, purchaser: order.purchaser, orderNote: order.orderNote });
+      if (isIPhone()) window.setTimeout(() => setScanOpen(true), 150);
     } catch (error) {
       setOrders((current) => current.filter((row) => row.orderId !== order.orderId));
       showRequestError(error);
