@@ -119,6 +119,12 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
 .pwaOffline{position:fixed;left:0;right:0;top:0;z-index:100;background:#8d2b31;color:#fff;padding:10px 18px;text-align:center;font-weight:900;box-shadow:0 5px 18px #071a3330}.pwaUpdate{position:fixed;left:50%;bottom:24px;z-index:100;width:min(520px,calc(100vw - 28px));transform:translateX(-50%);display:flex;align-items:center;gap:18px;background:#071a33;color:#fff;padding:14px 16px;box-shadow:0 14px 45px #071a3355;border-left:5px solid #ffd36a}.pwaUpdate div{display:grid;gap:3px;flex:1}.pwaUpdate small{color:#dce4ee}.pwaUpdate button,.pwaInstallButton{border:0;background:#d61f2c;color:#fff;min-height:42px;padding:8px 16px;font-weight:900;white-space:nowrap}.pwaInstall{position:fixed;right:18px;bottom:18px;z-index:90;width:min(330px,calc(100vw - 28px));background:#fff;border-top:4px solid #d61f2c;padding:18px;box-shadow:0 16px 50px #071a3335}.pwaInstall>div{display:grid;gap:4px;padding-right:24px}.pwaInstall small{color:#647086}.pwaInstallButton{width:100%;margin-top:14px}.pwaInstall p{margin:12px 0 0;background:#fff2df;padding:10px;font-size:12px;line-height:1.6}.pwaInstall em{display:block;margin-top:10px;color:#8a919c;font-size:10px;font-style:normal}.pwaDismiss{position:absolute;right:8px;top:7px;width:32px;height:32px;border:0;background:transparent;color:#647086;font-size:22px}
 @media(max-width:700px){.pwaUpdate{bottom:84px;align-items:stretch}.pwaUpdate button{min-width:105px}.pwaInstall{right:14px;bottom:84px}.pwaOffline{padding-top:calc(10px + env(safe-area-inset-top))}}
 @media print{.pwaOffline,.pwaUpdate,.pwaInstall{display:none!important}}
+.inlineItemNumbers label{justify-content:space-between}
+.inlineItemNumbers .numberLabel{color:#071a33;font-size:inherit;font-weight:900;white-space:nowrap}
+.inlineItemNumbers .numberWithUnit{display:inline-flex;align-items:center;justify-content:flex-end;gap:2px;margin-left:auto;white-space:nowrap}
+.inlineItemNumbers .numberWithUnit input[type=number]{width:42px!important;margin:0!important;padding-inline:3px!important;text-align:right}
+.inlineItemNumbers .numberWithUnit .inlineItemUnit{width:48px!important;margin:0!important;padding-inline:2px!important;text-align:left}
+.inlineItemNumbers .fixedUnit{color:inherit;font-size:inherit;font-weight:900}
 .ipadFullscreen .sidebar,.ipadFullscreen main>header{display:none!important}
 .ipadFullscreen main{margin:0!important;max-width:none!important;width:100%!important;min-height:100dvh;padding:18px 20px 28px!important}
 .ipadFullscreen .sectionTitle{margin-top:0!important}
@@ -128,6 +134,7 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
 .historyOrderNote{grid-column:1/-1;margin:4px 0 0!important;color:#4d5968!important;font-size:11px!important;line-height:1.45}
 .printMenuDots,.printOrderButton{display:none}
 @media print{
+  html,body,.app,.inlineItemCard{print-color-adjust:exact!important;-webkit-print-color-adjust:exact!important}
   @page{size:A4 portrait;margin:5mm}
   .boards{width:190mm!important;max-width:190mm!important;grid-template-columns:repeat(2,92mm)!important;grid-auto-rows:56mm!important;column-gap:5mm!important;row-gap:5mm!important}
   .boards .board{width:92mm!important;height:56mm!important;min-height:56mm!important;padding:2mm!important}
@@ -150,7 +157,7 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
   .inlineQty{width:10mm!important}.inlineUnit{width:9mm!important}
   .printOrderButton{display:grid!important;place-items:center;height:8mm;margin-top:1.2mm;background:linear-gradient(90deg,#ed4728,#d71935)!important;color:#fff!important;font-size:11pt!important;font-weight:900!important;letter-spacing:.04em}
   .printItemCards{grid-template-columns:repeat(2,92mm)!important;grid-auto-rows:56mm!important}
-  .printItemCards .inlineItemCard{box-sizing:border-box!important;width:92mm!important;height:56mm!important;min-height:56mm!important;padding:10mm 4mm 4mm!important;border:.35mm solid #d9dbe0!important;border-radius:2mm!important;box-shadow:none!important;break-inside:avoid-page;page-break-inside:avoid;overflow:hidden!important}
+  .printItemCards .inlineItemCard{box-sizing:border-box!important;width:92mm!important;height:56mm!important;min-height:56mm!important;padding:10mm 4mm 4mm!important;background:#fff!important;color:#16211e!important;border:.35mm solid #dddcd5!important;border-radius:2mm!important;box-shadow:0 8px 22px #203b3209!important;break-inside:avoid-page;page-break-inside:avoid;overflow:hidden!important}
   .printItemCards .inlineItemField{grid-template-columns:12mm minmax(0,1fr)!important;gap:1.5mm!important;margin-right:20mm!important;font-size:8.5pt!important}
   .printItemCards .inlineItemCard input{padding:.5mm 1mm!important;margin-left:-1mm!important;border:0!important;background:transparent!important}
   .printItemCards .inlineItemCategory{font-size:8.5pt!important}
@@ -161,7 +168,10 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
   .printItemCards .itemCardQr{right:4mm!important;top:14mm!important}
   .printItemCards .itemCardQr .fakeQr{position:static!important;width:17mm!important;height:17mm!important;padding:.7mm!important;border-width:.5mm!important}
   .printItemCards .inlineItemNumbers{gap:1.5mm!important;padding-top:1.2mm!important}
-  .printItemCards .inlineItemNumbers label{font-size:8.5pt!important}
+  .printItemCards .inlineItemNumbers label{font-size:8.5pt!important;justify-content:space-between!important}
   .printItemCards .inlineItemNumbers input{font-size:9pt!important}
+  .printItemCards .numberWithUnit{gap:.5mm!important;margin-left:auto!important}
+  .printItemCards .numberWithUnit input[type=number]{width:9mm!important;text-align:right!important}
+  .printItemCards .numberWithUnit .inlineItemUnit{width:11mm!important;text-align:left!important}
   .printItemCards .itemActions,.printItemCards .optionsMenu{display:none!important}
 }
