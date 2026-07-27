@@ -21,9 +21,9 @@ test("contains the material ordering workflow", async () => {
   assert.match(page, /function OrderBoard/);
   assert.match(page, /function QrBoards/);
   assert.match(page, /QrScannerEngine/);
-  assert.match(page, /カメラで撮影して読み取る/);
+  assert.doesNotMatch(page, /カメラで撮影して読み取る/);
   assert.match(page, /\["scan", "カメラ", "◎"\]/);
-  assert.match(page, /capture="environment"/);
+  assert.doesNotMatch(page, /capture="environment"/);
   assert.match(page, /setScanOpen\(true\)/);
   assert.match(page, /ライブカメラを再試行/);
   assert.match(page, /iphoneScanner/);

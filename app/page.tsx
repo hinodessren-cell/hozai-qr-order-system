@@ -380,22 +380,12 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
       } catch (error) {
         setCameraFailed(true);
         const denied = error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "PermissionDeniedError");
-        setMessage(denied ? "カメラが許可されていません。iPhoneの設定でSafari（またはこのアプリ）のカメラを許可してください。" : "ライブカメラを開始できません。下の「カメラで撮影して読み取る」をお使いください。");
+        setMessage(denied ? "カメラが許可されていません。iPhoneの設定でSafari（またはこのアプリ）のカメラを許可してください。" : "カメラを開始できません。カメラの許可を確認してから再試行してください。");
       }
     };
     void start();
     return () => { scanner?.stop(); scanner?.destroy(); };
   }, [resolve, retryCamera]);
-
-  const scanFile = async (file?: File) => {
-    if (!file) return;
-    try {
-      const result = await QrScannerEngine.scanImage(file, { returnDetailedScanResult: true });
-      resolve(result.data);
-    } catch {
-      setMessage("画像からQRコードを読み取れませんでした。");
-    }
-  };
 
   return <div className="modalBackdrop scannerBackdrop" onClick={close}><section className="scanModal iphoneScanner" onClick={(event) => event.stopPropagation()}>
     <header className="scannerHeader"><div><p>HINODE QR SCANNER</p><h2>QR看板を読み取る</h2></div><button className="scannerClose" onClick={close} aria-label="QR読み取りを閉じる">×</button></header>
@@ -403,7 +393,6 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
     <section className="scannerControls">
       <p className="scannerTip">看板のQRコードを四角い枠の中に合わせてください</p>
       {cameraFailed && <button className="cameraRetry" onClick={() => setRetryCamera((value) => value + 1)}>↻ ライブカメラを再試行</button>}
-      <label className="qrFileButton cameraCapture"><span className="captureIcon">◎</span><span><b>カメラで撮影して読み取る</b><small>iPhone標準カメラを使用</small></span><input type="file" accept="image/*" capture="environment" onChange={(event) => void scanFile(event.target.files?.[0])} /></label>
       {cameraFailed && <p className="iosCameraHelp">設定 → Safari（または使用中のアプリ）→ カメラ → 許可後、「再試行」を押してください。</p>}
       <details className="manualScan"><summary>管理番号を手入力する</summary><div><input value={code} onChange={(event) => setCode(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") resolve(code); }} placeholder="例：HZ-2CE1D46BD51220" inputMode="text" autoCapitalize="characters"/><button className="primary" onClick={() => resolve(code)} disabled={!code.trim()}>品目を開く</button></div></details>
     </section>
