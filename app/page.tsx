@@ -68,7 +68,7 @@ export default function Home() {
         };
         setStatusAlerts(nextStatusAlerts);
         setOrders(incoming);
-        if (initial && Object.values(nextStatusAlerts).some((count) => count > 0)) {
+        if (initial && !isIPhone() && Object.values(nextStatusAlerts).some((count) => count > 0)) {
           setTab("orders");
           incoming.forEach((order) => acknowledgedStatusEvents.current.add(`${order.orderId}:${order.status}`));
           window.localStorage.setItem("acknowledged-status-events", JSON.stringify([...acknowledgedStatusEvents.current].slice(-1500)));
@@ -80,8 +80,9 @@ export default function Home() {
       if (initial) {
         const search = new URLSearchParams(window.location.search);
         const requested = search.get("item");
-        if (search.get("tab") === "items") setTab("items");
-        if (search.get("tab") === "orders") {
+        const requestedTab = search.get("tab");
+        if (requestedTab === "items") setTab("items");
+        if (requestedTab === "orders") {
           setTab("orders");
           (data.orders as Order[]).forEach((order) => acknowledgedOrderIds.current.add(order.orderId));
           window.localStorage.setItem("acknowledged-orders", JSON.stringify([...acknowledgedOrderIds.current].slice(-500)));
@@ -92,6 +93,10 @@ export default function Home() {
           search.delete("item");
           const cleanQuery = search.toString();
           window.history.replaceState({}, "", `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash}`);
+        } else if (!requestedTab && isIPad()) {
+          setTab("orders");
+        } else if (!requestedTab && isIPhone()) {
+          setScanOpen(true);
         }
       }
     };
@@ -479,6 +484,14 @@ async function postState(payload: Record<string, unknown>) {
 function showRequestError(error: unknown) {
   if (error instanceof Error && error.message === "ログイン画面へ移動します。") return;
   window.alert(error instanceof Error ? error.message : "操作を完了できませんでした。");
+}
+
+function isIPhone() {
+  return /iPhone/i.test(navigator.userAgent);
+}
+
+function isIPad() {
+  return /iPad/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 }
 
 async function printQrBoards() {
