@@ -235,9 +235,9 @@ button:disabled{cursor:wait;opacity:.68}
     height:var(--board-height)!important;
     min-height:var(--board-height)!important;
     padding:2mm!important;
+    border:.3mm dashed #59616c!important;
     border-radius:0!important;
-    outline:.3mm dashed #59616c!important;
-    outline-offset:.8mm!important
+    outline:0!important
   }
   .printItemCards .inlineItemField{grid-template-columns:9mm minmax(0,1fr)!important;gap:.7mm!important;margin-right:21mm!important;font-size:7.2pt!important}
   .printItemCards .inlineItemCard input{padding:.2mm .5mm!important;margin-left:-.5mm!important}
