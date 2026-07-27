@@ -313,7 +313,7 @@ function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise
   </div></article>;
 }
 
-function InlineItemCard({ item, showLocation, save, edit, order }: { item: Item; showLocation: boolean; save: (item: Item) => Promise<void>; edit: () => void; order: () => void }) {
+function InlineItemCard({ item, save, edit, order }: { item: Item; showLocation: boolean; save: (item: Item) => Promise<void>; edit: () => void; order: () => void }) {
   const [draft, setDraft] = useState(item);
   const commit = async () => {
     if (JSON.stringify(draft) === JSON.stringify(item)) return;
@@ -325,8 +325,7 @@ function InlineItemCard({ item, showLocation, save, edit, order }: { item: Item;
     {field("category", "カテゴリ", "inlineItemCategory")}
     {field("code", "品番", "inlineItemCode")}
     {field("name", "品名", "inlineItemName")}
-    {showLocation && <label className="inlineItemLocation">⌖ {field("location", "保管場所")}</label>}
-    {field("memo", "備考", "inlineItemMemo")}
+    <label className="inlineItemMemoField"><span>備考</span>{field("memo", "備考", "inlineItemMemo")}</label>
     <div className="inlineItemNumbers"><label>発注数量 <input aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</label><label className="orderPointField">発注点 <input aria-label="発注点" type="number" min="0" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: Math.max(0, Number(event.target.value) || 0) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{draft.unit}</label></div>
     <OptionsMenu label={`${item.name}の操作`}><button onClick={edit}>詳細編集</button></OptionsMenu>
     <div className="itemActions"><button className="primary" onClick={order}>発注する</button></div>
