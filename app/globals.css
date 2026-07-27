@@ -44,8 +44,8 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
     width:100%!important;
     grid-template-columns:repeat(3,60mm)!important;
     grid-auto-rows:40mm!important;
-    column-gap:2mm!important;
-    row-gap:2mm!important;
+    column-gap:3mm!important;
+    row-gap:3mm!important;
     justify-content:center!important;
     align-items:start!important
   }
@@ -56,9 +56,11 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
     min-height:40mm!important;
     padding:1.5mm!important;
     gap:1.5mm!important;
-    border:0!important;
+    border:.35mm solid #000!important;
     border-radius:0!important;
     box-shadow:none!important;
+    outline:.2mm dashed #555!important;
+    outline-offset:.8mm!important;
     overflow:hidden!important;
     break-inside:avoid-page;
     page-break-inside:avoid
