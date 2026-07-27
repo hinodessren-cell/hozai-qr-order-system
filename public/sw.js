@@ -1,5 +1,6 @@
-const CACHE_NAME = "hozai-qr-order-v4";
+const CACHE_NAME = "hozai-qr-order-v5";
 const APP_ASSETS = [
+  "/offline.html",
   "/manifest.webmanifest",
   "/favicon.svg",
   "/icon-192.png",
@@ -9,7 +10,6 @@ const APP_ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_ASSETS)));
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
@@ -38,10 +38,7 @@ self.addEventListener("fetch", (event) => {
         })
         .catch(async () =>
           (await caches.match("/")) ??
-          new Response(
-            "<!doctype html><html lang=\"ja\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width\"><title>オフライン</title><body style=\"font-family:sans-serif;padding:2rem;background:#f4f1ea;color:#16211e\"><h1>オフラインです</h1><p>通信状態を確認して、もう一度開いてください。</p></body></html>",
-            { headers: { "content-type": "text/html; charset=utf-8" } },
-          ),
+          (await caches.match("/offline.html")),
         ),
     );
     return;
@@ -53,6 +50,10 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(fetch(request).catch(() => caches.match(request)));
+});
+
+self.addEventListener("message", (event) => {
+  if (event.data?.type === "SKIP_WAITING") self.skipWaiting();
 });
 
 self.addEventListener("push", (event) => {

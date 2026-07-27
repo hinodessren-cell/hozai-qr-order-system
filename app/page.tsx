@@ -73,6 +73,7 @@ export default function Home() {
       if (initial) {
         const search = new URLSearchParams(window.location.search);
         const requested = search.get("item");
+        if (search.get("tab") === "items") setTab("items");
         if (search.get("tab") === "orders") {
           setTab("orders");
           (data.orders as Order[]).forEach((order) => acknowledgedOrderIds.current.add(order.orderId));

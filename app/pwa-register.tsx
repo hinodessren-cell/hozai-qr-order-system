@@ -1,49 +1,130 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+
+type InstallPromptEvent = Event & {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+};
+
+const APP_VERSION = "5.0";
 
 export default function PwaRegister() {
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [online, setOnline] = useState(true);
+  const [standalone, setStandalone] = useState(true);
+  const [showInstall, setShowInstall] = useState(false);
+  const [showIosHelp, setShowIosHelp] = useState(false);
+
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      let refreshing = false;
-      let registration: ServiceWorkerRegistration | undefined;
-      const onControllerChange = () => {
-        if (refreshing) return;
-        refreshing = true;
-        window.location.reload();
-      };
-      const fingerprint = (documentNode: Document) => Array.from(documentNode.querySelectorAll("script[src],link[rel='stylesheet'][href]"))
-        .map((node) => node.getAttribute("src") ?? node.getAttribute("href") ?? "")
-        .filter((value) => value.startsWith("/"))
-        .sort()
-        .join("|");
-      const currentFingerprint = fingerprint(document);
-      const checkForUpdate = async () => {
-        if (document.visibilityState !== "visible" || refreshing) return;
-        try {
-          await registration?.update();
-          const response = await fetch(window.location.pathname, { cache: "no-store", headers: { "x-app-update-check": "1" } });
-          if (!response.ok) return;
-          const latestDocument = new DOMParser().parseFromString(await response.text(), "text/html");
-          const latestFingerprint = fingerprint(latestDocument);
-          if (latestFingerprint && latestFingerprint !== currentFingerprint) {
-            refreshing = true;
-            window.location.reload();
-          }
-        } catch { /* 次回の自動確認で再試行します */ }
-      };
-      navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
-      void navigator.serviceWorker.register("/sw.js?v=4", { updateViaCache: "none" }).then((current) => { registration = current; return current.update(); });
-      const timer = window.setInterval(() => void checkForUpdate(), 30_000);
-      const onVisibilityChange = () => { if (document.visibilityState === "visible") void checkForUpdate(); };
-      document.addEventListener("visibilitychange", onVisibilityChange);
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
+    const initializeTimer = window.setTimeout(() => {
+      setOnline(navigator.onLine);
+      setStandalone(isStandalone);
+      setShowInstall(!isStandalone && window.localStorage.getItem("pwa-install-dismissed") !== "yes");
+    }, 0);
+
+    const onOnline = () => setOnline(true);
+    const onOffline = () => setOnline(false);
+    const onInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+      setShowInstall(true);
+    };
+    const onInstalled = () => {
+      setStandalone(true);
+      setShowInstall(false);
+      setInstallPrompt(null);
+    };
+
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("beforeinstallprompt", onInstallPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+
+    if (!("serviceWorker" in navigator)) {
       return () => {
-        window.clearInterval(timer);
-        document.removeEventListener("visibilitychange", onVisibilityChange);
-        navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+        window.clearTimeout(initializeTimer);
+        window.removeEventListener("online", onOnline);
+        window.removeEventListener("offline", onOffline);
+        window.removeEventListener("beforeinstallprompt", onInstallPrompt);
+        window.removeEventListener("appinstalled", onInstalled);
       };
     }
+
+    let active = true;
+    const observe = (current: ServiceWorkerRegistration) => {
+      if (current.waiting) setUpdateAvailable(true);
+      current.addEventListener("updatefound", () => {
+        const worker = current.installing;
+        worker?.addEventListener("statechange", () => {
+          if (worker.state === "installed" && navigator.serviceWorker.controller) setUpdateAvailable(true);
+        });
+      });
+    };
+    void navigator.serviceWorker.register("/sw.js?v=5", { updateViaCache: "none" }).then((current) => {
+      if (!active) return;
+      setRegistration(current);
+      observe(current);
+      return current.update();
+    });
+
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible") void navigator.serviceWorker.getRegistration().then((current) => current?.update());
+    }, 30_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void navigator.serviceWorker.getRegistration().then((current) => current?.update());
+    };
+    const onControllerChange = () => window.location.reload();
+    document.addEventListener("visibilitychange", onVisible);
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+
+    return () => {
+      active = false;
+      window.clearTimeout(initializeTimer);
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+      navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("beforeinstallprompt", onInstallPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
   }, []);
 
-  return null;
+  const install = async () => {
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === "accepted") setShowInstall(false);
+      setInstallPrompt(null);
+      return;
+    }
+    setShowIosHelp(true);
+  };
+
+  const dismissInstall = () => {
+    window.localStorage.setItem("pwa-install-dismissed", "yes");
+    setShowInstall(false);
+  };
+
+  const applyUpdate = () => {
+    const waiting = registration?.waiting;
+    if (waiting) waiting.postMessage({ type: "SKIP_WAITING" });
+    else window.location.reload();
+  };
+
+  return <>
+    {!online && <aside className="pwaOffline" role="status">オフラインです。通信が戻ると自動的に再接続します。</aside>}
+    {updateAvailable && <aside className="pwaUpdate" role="status"><div><b>新しいバージョンがあります</b><small>発注内容を保存してから更新してください。</small></div><button onClick={applyUpdate}>今すぐ更新</button></aside>}
+    {!standalone && showInstall && <aside className="pwaInstall">
+      <button className="pwaDismiss" onClick={dismissInstall} aria-label="インストール案内を閉じる">×</button>
+      <div><b>アプリとして使えます</b><small>ホーム画面からすぐに起動できます。</small></div>
+      <button className="pwaInstallButton" onClick={() => void install()}>アプリをインストール</button>
+      {showIosHelp && <p>iPhone・iPadではSafariの共有ボタンから「ホーム画面に追加」を選んでください。</p>}
+      <em>アプリ v{APP_VERSION}</em>
+    </aside>}
+  </>;
 }

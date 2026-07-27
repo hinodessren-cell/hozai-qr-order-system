@@ -3,12 +3,26 @@
   "short_name": "日の出補材",
   "description": "QRコードから補材を発注し、入荷済みまでを管理します。",
   "lang": "ja",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#f4f1ea",
   "theme_color": "#071a33",
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "発注管理",
+      "short_name": "発注管理",
+      "url": "/?tab=orders"
+    },
+    {
+      "name": "品目・QR看板",
+      "short_name": "品目",
+      "url": "/?tab=items"
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",

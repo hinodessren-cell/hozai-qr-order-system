@@ -81,7 +81,7 @@ test("contains the material ordering workflow", async () => {
 });
 
 test("ships the migrated database and QR assets", async () => {
-  const [schema, initialMigration, legacyMigration, workflowMigration, orderPointMigration, boardNumberMigration, qrGenerator, serviceWorker, pwaRegister, qrFiles] = await Promise.all([
+  const [schema, initialMigration, legacyMigration, workflowMigration, orderPointMigration, boardNumberMigration, qrGenerator, serviceWorker, pwaRegister, offlinePage, manifest, qrFiles] = await Promise.all([
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("drizzle/0000_initial.sql", root), "utf8"),
     readFile(new URL("drizzle/0001_legacy_data.sql", root), "utf8"),
@@ -91,6 +91,8 @@ test("ships the migrated database and QR assets", async () => {
     readFile(new URL("scripts/generate_qr_assets.py", root), "utf8"),
     readFile(new URL("public/sw.js", root), "utf8"),
     readFile(new URL("app/pwa-register.tsx", root), "utf8"),
+    readFile(new URL("public/offline.html", root), "utf8"),
+    readFile(new URL("public/manifest.webmanifest", root), "utf8"),
     readdir(new URL("public/qr/", root)),
   ]);
 
@@ -110,8 +112,14 @@ test("ships the migrated database and QR assets", async () => {
   assert.match(serviceWorker, /request\.destination === "script"/);
   assert.match(pwaRegister, /updateViaCache: "none"/);
   assert.match(pwaRegister, /controllerchange/);
-  assert.match(pwaRegister, /x-app-update-check/);
+  assert.match(pwaRegister, /beforeinstallprompt/);
+  assert.match(pwaRegister, /新しいバージョンがあります/);
+  assert.match(pwaRegister, /SKIP_WAITING/);
   assert.match(pwaRegister, /setInterval/);
+  assert.match(serviceWorker, /offline\.html/);
+  assert.match(serviceWorker, /SKIP_WAITING/);
+  assert.match(offlinePage, /現在オフラインです/);
+  assert.match(manifest, /"shortcuts"/);
   assert.match(qrGenerator, /QR_BASE_URL/);
   assert.match(qrGenerator, /\?item=/);
   assert.equal(qrFiles.filter((name) => name.endsWith(".svg")).length, 1512);
