@@ -26,6 +26,9 @@ test("contains the material ordering workflow", async () => {
   assert.doesNotMatch(page, /capture="environment"/);
   assert.match(page, /setScanOpen\(true\)/);
   assert.match(page, /ライブカメラを再試行/);
+  assert.match(page, /highlightScanRegion: false/);
+  assert.match(page, /highlightCodeOutline: false/);
+  assert.match(page, /itemsRef\.current/);
   assert.match(page, /iphoneScanner/);
   assert.match(page, /管理番号を手入力する/);
   assert.match(page, /push-subscribe/);

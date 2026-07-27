@@ -348,17 +348,24 @@ function FakeQr({ value }: { value: string }) {
 
 function QrScanner({ items, close, found }: { items: Item[]; close: () => void; found: (item: Item) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const itemsRef = useRef(items);
+  const foundRef = useRef(found);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState("カメラをQRコードへ向けてください");
   const [cameraFailed, setCameraFailed] = useState(false);
   const [retryCamera, setRetryCamera] = useState(0);
 
+  useEffect(() => {
+    itemsRef.current = items;
+    foundRef.current = found;
+  }, [items, found]);
+
   const resolve = useCallback((raw: string) => {
     let id = raw.trim();
     try { id = new URL(id).searchParams.get("item") ?? id; } catch { /* 管理番号を直接入力した場合 */ }
-    const item = items.find((row) => row.id.toLowerCase() === id.toLowerCase());
-    if (item) found(item); else setMessage("該当する品目が見つかりません。管理番号をご確認ください。");
-  }, [found, items]);
+    const item = itemsRef.current.find((row) => row.id.toLowerCase() === id.toLowerCase());
+    if (item) foundRef.current(item); else setMessage("該当する品目が見つかりません。管理番号をご確認ください。");
+  }, []);
 
   useEffect(() => {
     let scanner: QrScannerEngine | undefined;
@@ -374,7 +381,7 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
         scanner = new QrScannerEngine(
           videoRef.current,
           (result) => resolve(result.data),
-          { preferredCamera: "environment", highlightScanRegion: true, highlightCodeOutline: true, returnDetailedScanResult: true },
+          { preferredCamera: "environment", highlightScanRegion: false, highlightCodeOutline: false, returnDetailedScanResult: true },
         );
         await scanner.start();
         setMessage("QRコードを枠内に合わせてください");
