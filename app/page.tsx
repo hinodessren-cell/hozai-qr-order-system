@@ -37,6 +37,7 @@ export default function Home() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsNotice, setSettingsNotice] = useState("");
   const [printRequested, setPrintRequested] = useState(false);
+  const [printQrSources, setPrintQrSources] = useState<Record<string, string>>({});
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState<Item | "new" | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
@@ -259,6 +260,11 @@ export default function Home() {
   }
 
   async function startQrBoardPrint() {
+    const qrEntries = await Promise.all(items.map(async (item) => [
+      item.id,
+      await QRCode.toDataURL(`${window.location.origin}/?item=${encodeURIComponent(item.id)}`, { errorCorrectionLevel: "M", margin: 1, width: 320 }),
+    ] as const));
+    setPrintQrSources(Object.fromEntries(qrEntries));
     setPrintRequested(true);
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())));
     await printQrBoards();
@@ -294,7 +300,7 @@ export default function Home() {
         {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
         {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="すべての履歴" />}
 
-        {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><button className="outline" onClick={() => void startQrBoardPrint()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div>{printRequested && <div className="integratedPrintBoards"><QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} /></div>}</section>}
+        {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><button className="outline" onClick={() => void startQrBoardPrint()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div>{printRequested && <div className="integratedPrintBoards"><QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} qrSources={printQrSources} /></div>}</section>}
       </main>
       {ipadDevice && settings.ipadFullscreen && <div className="ipadFullscreenControls"><button onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button><button onClick={() => { const next = { ...settings, ipadFullscreen: false }; setSettings(next); void persistSettings(next).then(() => { setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); }).catch(showRequestError); }}>全画面を解除</button></div>}
       {settingsNotice && <div className="settingsToast" role="status">{settingsNotice}</div>}
@@ -322,21 +328,16 @@ function OrderBoard({ orders, onAdvance, onCancel, onReturn, onReturnToOrdered, 
   })}</div></section>;
 }
 
-function QrBoards({ items, columns, width, height, save }: { items: Item[]; columns: number; width: number; height: number; save: (item: Item) => Promise<void> }) {
+function QrBoards({ items, columns, width, height, qrSources }: { items: Item[]; columns: number; width: number; height: number; save: (item: Item) => Promise<void>; qrSources: Record<string, string> }) {
   const boardStyle = { "--board-width": `${width}mm`, "--board-height": `${height}mm`, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } as React.CSSProperties;
   const sortedItems = [...items].sort((a, b) => a.category.localeCompare(b.category, "ja", { numeric: true, sensitivity: "base" }) || a.name.localeCompare(b.name, "ja", { numeric: true, sensitivity: "base" }));
-  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">品目ページの看板と同じレイアウトで印刷します。カテゴリ・品名が近い順に並びます。</span></div></div><div className="boards printItemCards" style={boardStyle}>{sortedItems.map((item) => <PrintItemCard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.orderPoint}:${item.boardNumber}:${item.location}:${item.memo}`} item={item} />)}</div></section>;
+  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">品目ページの看板と同じレイアウトで印刷します。カテゴリ・品名が近い順に並びます。</span></div></div><div className="boards printItemCards" style={boardStyle}>{sortedItems.map((item) => <PrintItemCard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.orderPoint}:${item.boardNumber}:${item.location}:${item.memo}`} item={item} qrSource={qrSources[item.id]} />)}</div></section>;
 }
 
-function PrintItemCard({ item }: { item: Item }) {
-  const qrFallback = async (event: React.SyntheticEvent<HTMLImageElement>) => {
-    const image = event.currentTarget;
-    image.onerror = null;
-    image.src = await QRCode.toDataURL(`${window.location.origin}/?item=${encodeURIComponent(item.id)}`, { errorCorrectionLevel: "M", margin: 1, width: 320 });
-  };
+function PrintItemCard({ item, qrSource }: { item: Item; qrSource: string }) {
   return <article className="itemCard inlineItemCard">
     <label className="inlineItemField"><span>カテゴリ</span><input className="inlineItemCategory" readOnly value={item.category}/></label>
-    <div className="itemCardQr"><img className="fakeQr" src={`/qr/${encodeURIComponent(item.id)}.svg`} onError={(event) => void qrFallback(event)} alt=""/></div>
+    <div className="itemCardQr"><img className="fakeQr" src={qrSource} alt=""/></div>
     <label className="inlineItemField"><span>品番</span><input className="inlineItemCode" readOnly value={item.code}/></label>
     <label className="inlineItemField"><span>品名</span><input className="inlineItemName" readOnly value={item.name}/></label>
     <label className="inlineItemMemoField"><span>保管場所</span><input className="inlineItemMemo" readOnly value={item.location}/></label>
