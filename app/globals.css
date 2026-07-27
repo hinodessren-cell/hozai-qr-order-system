@@ -36,17 +36,19 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
 .boardTitleLine{display:flex;align-items:center;gap:6px;min-width:0}.boardNameField{flex:1;min-width:0;display:grid!important;grid-template-columns:auto minmax(0,1fr);gap:4px}.boardNameField span{font-size:9px;font-weight:800;color:var(--accent)}.boardTitleLine .inlineName{flex:1}.boardNumber{flex:none;color:#071a33!important;background:#eef1f5;border-radius:4px;padding:3px 5px;font-size:9px!important;letter-spacing:.03em;white-space:nowrap}.sectionTitleActions{display:flex;gap:8px}.stickyItemActions{position:sticky;top:8px;z-index:24;justify-content:flex-end;margin:0 0 14px;padding:10px;background:#f7f5f0f2;border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}.integratedPrintBoards{display:none}
 .boards .board{height:auto;min-height:230px;overflow:visible;align-items:flex-start;padding:22px 18px;border:1px solid #d9dbe0;border-radius:9px;box-shadow:0 8px 24px #071a330d}.boards .board .fakeQr{margin-top:38px}.inlineBoardFields{gap:7px}.inlineCategory{color:var(--accent)!important;font-size:11px!important;font-weight:800!important}.boardNameField .inlineName{font:20px Georgia,"Yu Mincho",serif!important}.inlineMeta{margin-top:6px;padding-top:9px;border-top:1px solid var(--line)}.inlineMeta .orderPointField{background:#fff0f1;padding:5px 7px;border-left:3px solid var(--accent);color:var(--accent)}
 @media print{
-  @page{size:A4 portrait;margin:8mm}
-  html,body,.app,main{width:auto!important;min-width:0!important;overflow:visible!important}
+  @page{size:A4 portrait;margin:5mm}
+  html,body,.app,main{width:200mm!important;max-width:200mm!important;min-width:0!important;overflow:visible!important}
   .itemsWorkspace>.sectionTitle,.itemsWorkspace>.stickyItemActions,.itemsWorkspace>.itemGrid{display:none!important}
+  .itemsWorkspace,.integratedPrintBoards,.integratedPrintBoards>section{box-sizing:border-box!important;width:200mm!important;max-width:200mm!important;margin-inline:0!important;overflow:visible!important}
   .integratedPrintBoards{display:block!important}
   .boards{
-    width:100%!important;
+    width:186mm!important;
+    max-width:186mm!important;
     grid-template-columns:repeat(3,60mm)!important;
     grid-auto-rows:40mm!important;
     column-gap:3mm!important;
     row-gap:3mm!important;
-    justify-content:center!important;
+    justify-content:start!important;
     align-items:start!important
   }
   .boards .board{
