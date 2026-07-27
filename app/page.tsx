@@ -6,7 +6,7 @@ import QRCode from "qrcode";
 
 type Status = "発注待ち" | "入荷待ち" | "入荷済み" | "取消";
 type Item = { id: string; code: string; name: string; category: string; unit: string; qty: number; orderPoint: number; boardNumber: number; location: string; memo: string };
-type Order = Item & { orderId: string; status: Status; orderedAt: string; purchaser: string };
+type Order = Item & { orderId: string; status: Status; orderedAt: string; purchaser: string; orderNote: string };
 
 const initialItems: Item[] = [
   { id: "HZ-2CE1D46BD51220", code: "712-30", name: "カッターマット", category: "ホットマーカ", unit: "set", qty: 5, orderPoint: 1, boardNumber: 1, location: "工具棚 A-2", memo: "1set / 5組10個入" },
@@ -16,9 +16,9 @@ const initialItems: Item[] = [
 ];
 
 const initialOrders: Order[] = [
-  { ...initialItems[0], orderId: "O-7252F6DE03", status: "入荷待ち", orderedAt: "2026/07/22 09:15", purchaser: "古閑" },
-  { ...initialItems[1], orderId: "O-588C5D3C9B", status: "発注待ち", orderedAt: "2026/07/22 10:05", purchaser: "吉川" },
-  { ...initialItems[3], orderId: "O-6A802335B5", status: "入荷済み", orderedAt: "2026/07/21 16:40", purchaser: "長谷" },
+  { ...initialItems[0], orderId: "O-7252F6DE03", status: "入荷待ち", orderedAt: "2026/07/22 09:15", purchaser: "古閑", orderNote: "" },
+  { ...initialItems[1], orderId: "O-588C5D3C9B", status: "発注待ち", orderedAt: "2026/07/22 10:05", purchaser: "吉川", orderNote: "" },
+  { ...initialItems[3], orderId: "O-6A802335B5", status: "入荷済み", orderedAt: "2026/07/21 16:40", purchaser: "長谷", orderNote: "" },
 ];
 
 const defaultSettings = {
@@ -61,12 +61,19 @@ export default function Home() {
         }
         seenOrderIds.current = new Set(incoming.map((order) => order.orderId));
         setUnreadOrders(incoming.filter((order) => order.status === "発注待ち" && !acknowledgedOrderIds.current.has(order.orderId)).length);
-        setStatusAlerts({
+        const nextStatusAlerts = {
           "発注待ち": incoming.filter((order) => order.status === "発注待ち" && !acknowledgedStatusEvents.current.has(`${order.orderId}:発注待ち`)).length,
           "入荷待ち": incoming.filter((order) => order.status === "入荷待ち" && !acknowledgedStatusEvents.current.has(`${order.orderId}:入荷待ち`)).length,
           "入荷済み": incoming.filter((order) => order.status === "入荷済み" && !acknowledgedStatusEvents.current.has(`${order.orderId}:入荷済み`)).length,
-        });
+        };
+        setStatusAlerts(nextStatusAlerts);
         setOrders(incoming);
+        if (initial && Object.values(nextStatusAlerts).some((count) => count > 0)) {
+          setTab("orders");
+          incoming.forEach((order) => acknowledgedStatusEvents.current.add(`${order.orderId}:${order.status}`));
+          window.localStorage.setItem("acknowledged-status-events", JSON.stringify([...acknowledgedStatusEvents.current].slice(-1500)));
+          setStatusAlerts({ "発注待ち": 0, "入荷待ち": 0, "入荷済み": 0 });
+        }
       }
       if (data?.settings) setSettings((s) => ({ ...s, ...data.settings }));
       if (data?.pushPublicKey) setPushPublicKey(data.pushPublicKey);
@@ -130,7 +137,7 @@ export default function Home() {
       showRequestError(error);
     }
   }
-  async function placeOrder(item: Item, quantity: number, purchaser: string) {
+  async function placeOrder(item: Item, quantity: number, purchaser: string, orderNote: string) {
     const existing = orders.find((order) => order.id === item.id && (order.status === "発注待ち" || order.status === "入荷待ち"));
     if (existing) {
       setSelectedItem(null);
@@ -141,11 +148,11 @@ export default function Home() {
     const qty = Math.max(1, quantity);
     // This timestamp is created only after the user confirms an order.
     // eslint-disable-next-line react-hooks/purity
-    const order = { ...item, qty, orderId: `O-${Date.now()}`, status: "発注待ち" as Status, orderedAt: new Date().toISOString(), purchaser: purchaser.trim() };
+    const order = { ...item, qty, orderId: `O-${Date.now()}`, status: "発注待ち" as Status, orderedAt: new Date().toISOString(), purchaser: purchaser.trim(), orderNote: orderNote.trim() };
     setOrders((current) => [order, ...current]);
     setSelectedItem(null); openTab("orders");
     try {
-      await postState({ action: "order", itemId: item.id, orderId: order.orderId, quantity: qty, purchaser: order.purchaser });
+      await postState({ action: "order", itemId: item.id, orderId: order.orderId, quantity: qty, purchaser: order.purchaser, orderNote: order.orderNote });
     } catch (error) {
       setOrders((current) => current.filter((row) => row.orderId !== order.orderId));
       showRequestError(error);
@@ -278,14 +285,14 @@ export default function Home() {
 }
 
 function OrderList({ orders, onAdvance, onCancel, onReturn, onReturnToOrdered, showMemo, title }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; onReturn: (id: string) => void; onReturnToOrdered: (id: string) => void; showMemo: boolean; title: string }) {
-  return <section className="orderSection"><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>{title}</h2></div></div><div className="orderList">{orders.map((o) => <article className="orderRow" key={o.orderId}>{o.status !== "取消" && <OptionsMenu label={`${o.name}の操作`}>{o.status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(o.orderId)}>入荷待ちへ戻す</button>}{o.status === "入荷待ち" && <button className="menuNeutral" onClick={() => onReturnToOrdered(o.orderId)}>発注待ちに戻す</button>}<button onClick={() => onCancel(o.orderId)}>発注取消</button></OptionsMenu>}<span className={`status s-${o.status}`}>{o.status}</span><div className="orderMain"><small>{o.code} ・ {o.category}</small><h3>{o.name}</h3>{showMemo && <p>{o.memo}</p>}</div><div className="orderMeta"><small>数量</small><strong>{o.qty}<i>{o.unit}</i></strong></div><div className="orderMeta"><small>発注者</small><b>{o.purchaser}</b><span>{o.orderedAt}</span></div>{o.status === "発注待ち" || o.status === "入荷待ち" ? <button className="next" onClick={() => onAdvance(o.orderId)}>{o.status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button> : <span className={`done ${o.status === "取消" ? "cancelled" : ""}`}>{o.status === "取消" ? "× 取消" : "✓ 入荷済み"}</span>}</article>)}</div></section>;
+  return <section className="orderSection"><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>{title}</h2></div></div><div className="orderList">{orders.map((o) => <article className="orderRow" key={o.orderId}>{o.status !== "取消" && <OptionsMenu label={`${o.name}の操作`}>{o.status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(o.orderId)}>入荷待ちへ戻す</button>}{o.status === "入荷待ち" && <button className="menuNeutral" onClick={() => onReturnToOrdered(o.orderId)}>発注待ちに戻す</button>}<button onClick={() => onCancel(o.orderId)}>発注取消</button></OptionsMenu>}<span className={`status s-${o.status}`}>{o.status}</span><div className="orderMain"><small>{o.code} ・ {o.category}</small><h3>{o.name}</h3>{showMemo && <p>{o.memo}</p>}{o.orderNote && <p className="orderNoteDisplay">発注メモ：{o.orderNote}</p>}</div><div className="orderMeta"><small>数量</small><strong>{o.qty}<i>{o.unit}</i></strong></div><div className="orderMeta"><small>発注者</small><b>{o.purchaser}</b><span>{o.orderedAt}</span></div>{o.status === "発注待ち" || o.status === "入荷待ち" ? <button className="next" onClick={() => onAdvance(o.orderId)}>{o.status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button> : <span className={`done ${o.status === "取消" ? "cancelled" : ""}`}>{o.status === "取消" ? "× 取消" : "✓ 入荷済み"}</span>}</article>)}</div></section>;
 }
 
 function OrderBoard({ orders, onAdvance, onCancel, onReturn, onReturnToOrdered, onViewStatus, statusAlerts, showMemo }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; onReturn: (id: string) => void; onReturnToOrdered: (id: string) => void; onViewStatus: (status: "発注待ち" | "入荷待ち" | "入荷済み") => void; statusAlerts: Record<"発注待ち" | "入荷待ち" | "入荷済み", number>; showMemo: boolean }) {
   const statuses: Exclude<Status, "取消">[] = ["発注待ち", "入荷待ち", "入荷済み"];
   return <section><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>発注・入荷状況</h2></div></div><div className="pipelineBoard">{statuses.map((status) => {
     const statusOrders = orders.filter((order) => order.status === status);
-    return <section className="pipelineColumn" key={status}><header onClick={() => onViewStatus(status)}><h3>{status}</h3>{statusAlerts[status] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<span>{statusOrders.length}</span></header><div>{statusOrders.map((order) => <article className="pipelineCard" key={order.orderId}><OptionsMenu label={`${order.name}の操作`}>{status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(order.orderId)}>入荷待ちへ戻す</button>}{status === "入荷待ち" && <button className="menuNeutral" onClick={() => onReturnToOrdered(order.orderId)}>発注待ちに戻す</button>}<button onClick={() => onCancel(order.orderId)}>発注取消</button></OptionsMenu><small>{order.code} ・ {order.category}</small><h4>{order.name}</h4>{showMemo && <p>{order.memo}</p>}<dl><div><dt>数量</dt><dd>{order.qty}{order.unit}</dd></div><div><dt>発注者</dt><dd>{order.purchaser}</dd></div></dl>{status !== "入荷済み" && <button className="next pipelineNext" onClick={() => onAdvance(order.orderId)}>{status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button>}</article>)}</div></section>;
+    return <section className="pipelineColumn" key={status}><header onClick={() => onViewStatus(status)}><h3>{status}</h3>{statusAlerts[status] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<span>{statusOrders.length}</span></header><div>{statusOrders.map((order) => <article className="pipelineCard" key={order.orderId}><OptionsMenu label={`${order.name}の操作`}>{status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(order.orderId)}>入荷待ちへ戻す</button>}{status === "入荷待ち" && <button className="menuNeutral" onClick={() => onReturnToOrdered(order.orderId)}>発注待ちに戻す</button>}<button onClick={() => onCancel(order.orderId)}>発注取消</button></OptionsMenu><small>{order.code} ・ {order.category}</small><h4>{order.name}</h4>{showMemo && <p>{order.memo}</p>}{order.orderNote && <p className="orderNoteDisplay">発注メモ：{order.orderNote}</p>}<dl><div><dt>数量</dt><dd>{order.qty}{order.unit}</dd></div><div><dt>発注者</dt><dd>{order.purchaser}</dd></div></dl>{status !== "入荷済み" && <button className="next pipelineNext" onClick={() => onAdvance(order.orderId)}>{status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button>}</article>)}</div></section>;
   })}</div></section>;
 }
 
@@ -302,12 +309,13 @@ function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise
     try { await save(draft); } catch { setDraft(item); }
   };
   const keyDown = (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") event.currentTarget.blur(); };
-  return <article className="board"><FakeQr value={item.id}/><div className="inlineBoardFields">
+  return <article className="board"><span className="printMenuDots">•••</span><FakeQr value={item.id}/><div className="inlineBoardFields">
     <label className="printBoardField"><span>カテゴリ</span><input className="inlineCategory" aria-label="カテゴリ" value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
     <label className="printBoardField"><span>品番</span><input className="inlineCode" aria-label="品番" value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
     <div className="boardTitleLine"><label className="boardNameField"><span>品名</span><input className="inlineName" aria-label="品名" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><strong className="boardNumber">No.{String(item.boardNumber).padStart(3, "0")}</strong></div>
     <label className="printBoardField printBoardMemo"><span>備考</span><input aria-label="備考" value={draft.memo} onChange={(event) => setDraft({ ...draft, memo: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
     <div className="inlineMeta"><label className="boardLocationField">保管場所<input aria-label="保管場所" value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label>発注数量 <input className="inlineQty" aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/><input className="inlineUnit" aria-label="単位" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label className="orderPointField">発注点 <input className="inlineQty" aria-label="発注点" type="number" min="0" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: Math.max(0, Number(event.target.value) || 0) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{draft.unit}</label></div>
+    <div className="printOrderButton">発注する</div>
   </div></article>;
 }
 
@@ -332,7 +340,15 @@ function InlineItemCard({ item, save, edit, order }: { item: Item; showLocation:
 }
 
 function OptionsMenu({ label, children }: { label: string; children: React.ReactNode }) {
-  return <details className="optionsMenu"><summary aria-label={label}>•••</summary><div>{children}</div></details>;
+  const menuRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const closeOnOutsidePress = (event: PointerEvent) => {
+      if (menuRef.current?.open && !menuRef.current.contains(event.target as Node)) menuRef.current.open = false;
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePress);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePress);
+  }, []);
+  return <details ref={menuRef} className="optionsMenu"><summary aria-label={label}>•••</summary><div onClick={() => { if (menuRef.current) menuRef.current.open = false; }}>{children}</div></details>;
 }
 
 function FakeQr({ value }: { value: string }) {
@@ -408,10 +424,11 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
   </section></div>;
 }
 
-function OrderModal({ item, history, close, submit }: { item: Item; history: Order[]; close: () => void; submit: (item: Item, quantity: number, purchaser: string) => void }) {
+function OrderModal({ item, history, close, submit }: { item: Item; history: Order[]; close: () => void; submit: (item: Item, quantity: number, purchaser: string, orderNote: string) => void }) {
   const [quantity, setQuantity] = useState(Math.max(1, item.qty));
   const [purchaser, setPurchaser] = useState("");
-  return <div className="modalBackdrop" onClick={close}><section className="orderModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">ORDER ITEM</p><h2>{item.name}</h2><div className="orderCode">{item.code}<span>{item.category}</span></div><dl><div><dt>保管場所</dt><dd>{item.location}</dd></div><div><dt>備考</dt><dd>{item.memo}</dd></div></dl>{history.length > 0 && <section className="previousOrders"><h3>前回までの発注履歴</h3>{history.slice(0, 3).map((order, index) => <article key={order.orderId}><div><b>{index === 0 ? "前回" : `${index + 1}回前`}</b><span>{formatOrderDate(order.orderedAt)}</span></div><strong>{order.qty}{order.unit}</strong><small>{order.purchaser} ・ {order.status}</small></article>)}</section>}<label>発注者名（必須）<input autoFocus value={purchaser} onChange={(event) => setPurchaser(event.target.value)} placeholder="氏名を入力" maxLength={100}/></label><label>発注数量<div className="quantity"><button aria-label="数量を減らす" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><input type="number" min="1" value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}/><span>{item.unit}</span><button aria-label="数量を増やす" onClick={() => setQuantity((value) => value + 1)}>＋</button></div></label><button className="primary wide" disabled={!purchaser.trim()} onClick={() => submit(item, quantity, purchaser)}>この内容で発注する</button></section></div>;
+  const [orderNote, setOrderNote] = useState("");
+  return <div className="modalBackdrop" onClick={close}><section className="orderModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">ORDER ITEM</p><h2>{item.name}</h2><div className="orderCode">{item.code}<span>{item.category}</span></div><dl><div><dt>保管場所</dt><dd>{item.location}</dd></div><div><dt>備考</dt><dd>{item.memo}</dd></div></dl>{history.length > 0 && <section className="previousOrders"><h3>前回までの発注履歴</h3>{history.slice(0, 3).map((order, index) => <article key={order.orderId}><div><b>{index === 0 ? "前回" : `${index + 1}回前`}</b><span>{formatOrderDate(order.orderedAt)}</span></div><strong>{order.qty}{order.unit}</strong><small>{order.purchaser} ・ {order.status}</small>{order.orderNote && <p className="historyOrderNote">発注メモ：{order.orderNote}</p>}</article>)}</section>}<label>発注者名（必須）<input autoFocus value={purchaser} onChange={(event) => setPurchaser(event.target.value)} placeholder="氏名を入力" maxLength={100}/></label><label>発注用メモ（任意）<textarea className="orderNoteInput" value={orderNote} onChange={(event) => setOrderNote(event.target.value)} placeholder="納期・購入先・連絡事項など" maxLength={500}/></label><label>発注数量<div className="quantity"><button aria-label="数量を減らす" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><input type="number" min="1" value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}/><span>{item.unit}</span><button aria-label="数量を増やす" onClick={() => setQuantity((value) => value + 1)}>＋</button></div></label><button className="primary wide" disabled={!purchaser.trim()} onClick={() => submit(item, quantity, purchaser, orderNote)}>この内容で発注する</button></section></div>;
 }
 
 function formatOrderDate(value: string) {

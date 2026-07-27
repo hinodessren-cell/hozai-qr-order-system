@@ -65,7 +65,7 @@ export async function GET() {
     const itemMap = new Map(serializedItems.map((item) => [item.id, item]));
     return Response.json({
       items: serializedItems,
-      orders: orderRows.map((order) => ({ ...itemMap.get(order.itemId), orderId: order.id, status: order.status === "完了" ? "入荷済み" : order.status, qty: order.quantity, purchaser: order.purchaser, orderedAt: order.orderedAt })),
+      orders: orderRows.map((order) => ({ ...itemMap.get(order.itemId), orderId: order.id, status: order.status === "完了" ? "入荷済み" : order.status, qty: order.quantity, purchaser: order.purchaser, orderNote: order.orderNote, orderedAt: order.orderedAt })),
       settings: Object.fromEntries(settingRows.map((row) => [row.key, JSON.parse(row.value)])),
       pushPublicKey: runtimeEnv.VAPID_PUBLIC_KEY ?? null,
     });
@@ -75,7 +75,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  let payload: { action?: string; itemId?: string; orderId?: string; status?: string; quantity?: number; purchaser?: string; settings?: Record<string, unknown>; subscription?: { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } } };
+  let payload: { action?: string; itemId?: string; orderId?: string; status?: string; quantity?: number; purchaser?: string; orderNote?: string; settings?: Record<string, unknown>; subscription?: { endpoint?: unknown; keys?: { p256dh?: unknown; auth?: unknown } } };
   try {
     payload = await request.json();
   } catch {
@@ -105,6 +105,7 @@ export async function POST(request: Request) {
         status: "発注待ち",
         quantity,
         purchaser: payload.purchaser?.trim().slice(0, 100) || "担当者",
+        orderNote: payload.orderNote?.trim().slice(0, 500) || "",
         orderedAt: now,
         updatedAt: now,
       });

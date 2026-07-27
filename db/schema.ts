@@ -10,6 +10,7 @@ export const items = sqliteTable("items", {
 export const orders = sqliteTable("orders", {
   id: text("id").primaryKey(), itemId: text("item_id").notNull(), status: text("status").notNull(),
   quantity: integer("quantity").notNull(), purchaser: text("purchaser").notNull().default(""),
+  orderNote: text("order_note").notNull().default(""),
   orderedAt: text("ordered_at").notNull(), updatedAt: text("updated_at").notNull(),
 });
 export const appSettings = sqliteTable("app_settings", { key: text("key").primaryKey(), value: text("value").notNull() });

@@ -119,3 +119,29 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
 .pwaOffline{position:fixed;left:0;right:0;top:0;z-index:100;background:#8d2b31;color:#fff;padding:10px 18px;text-align:center;font-weight:900;box-shadow:0 5px 18px #071a3330}.pwaUpdate{position:fixed;left:50%;bottom:24px;z-index:100;width:min(520px,calc(100vw - 28px));transform:translateX(-50%);display:flex;align-items:center;gap:18px;background:#071a33;color:#fff;padding:14px 16px;box-shadow:0 14px 45px #071a3355;border-left:5px solid #ffd36a}.pwaUpdate div{display:grid;gap:3px;flex:1}.pwaUpdate small{color:#dce4ee}.pwaUpdate button,.pwaInstallButton{border:0;background:#d61f2c;color:#fff;min-height:42px;padding:8px 16px;font-weight:900;white-space:nowrap}.pwaInstall{position:fixed;right:18px;bottom:18px;z-index:90;width:min(330px,calc(100vw - 28px));background:#fff;border-top:4px solid #d61f2c;padding:18px;box-shadow:0 16px 50px #071a3335}.pwaInstall>div{display:grid;gap:4px;padding-right:24px}.pwaInstall small{color:#647086}.pwaInstallButton{width:100%;margin-top:14px}.pwaInstall p{margin:12px 0 0;background:#fff2df;padding:10px;font-size:12px;line-height:1.6}.pwaInstall em{display:block;margin-top:10px;color:#8a919c;font-size:10px;font-style:normal}.pwaDismiss{position:absolute;right:8px;top:7px;width:32px;height:32px;border:0;background:transparent;color:#647086;font-size:22px}
 @media(max-width:700px){.pwaUpdate{bottom:84px;align-items:stretch}.pwaUpdate button{min-width:105px}.pwaInstall{right:14px;bottom:84px}.pwaOffline{padding-top:calc(10px + env(safe-area-inset-top))}}
 @media print{.pwaOffline,.pwaUpdate,.pwaInstall{display:none!important}}
+.orderModal textarea{width:100%;min-height:92px;padding:12px;border:1px solid var(--line);background:#faf9f6;font:inherit;resize:vertical}
+.historyOrderNote{grid-column:1/-1;margin:4px 0 0!important;color:#4d5968!important;font-size:11px!important;line-height:1.45}
+.printMenuDots,.printOrderButton{display:none}
+@media print{
+  @page{size:A4 portrait;margin:5mm}
+  .boards{width:190mm!important;max-width:190mm!important;grid-template-columns:repeat(2,92mm)!important;grid-auto-rows:56mm!important;column-gap:5mm!important;row-gap:5mm!important}
+  .boards .board{width:92mm!important;height:56mm!important;min-height:56mm!important;padding:2mm!important}
+  .boards .fakeQr{position:absolute!important;right:3mm!important;top:11mm!important;width:17mm!important;height:17mm!important;padding:.7mm!important;border-width:.5mm!important}
+  .printMenuDots{display:grid!important;position:absolute;right:2.5mm;top:2mm;width:8mm;height:7mm;place-items:center;border:.25mm solid #d8dce3;border-radius:1.5mm;color:#314159;font-size:10pt;font-weight:900;letter-spacing:.4mm}
+  .inlineBoardFields{display:grid!important;width:100%!important;gap:1mm!important}
+  .printBoardField,.boardNameField{grid-template-columns:12mm minmax(0,1fr)!important;gap:1.5mm!important;padding-right:22mm!important}
+  .printBoardField span,.boardNameField span{font-size:8.5pt!important;font-weight:900!important}
+  .printBoardField input,.boardNameField input{font-size:10pt!important;line-height:1.2!important}
+  .printBoardField .inlineCategory{font-size:8.5pt!important;color:#d61f2c!important}
+  .printBoardField .inlineCode{font-size:14pt!important}
+  .boardNameField .inlineName{font-size:11pt!important}
+  .printBoardMemo input{font-size:8.5pt!important}
+  .boardTitleLine{padding-right:22mm!important}
+  .boardNumber{display:none!important}
+  .inlineMeta{gap:1.5mm!important;margin-top:1mm!important;padding-top:1.2mm!important}
+  .inlineMeta label{font-size:8.5pt!important;font-weight:900!important}
+  .inlineMeta .orderPointField{padding:1mm 1.2mm!important}
+  .inlineMeta input{font-size:9pt!important}
+  .inlineQty{width:10mm!important}.inlineUnit{width:9mm!important}
+  .printOrderButton{display:grid!important;place-items:center;height:8mm;margin-top:1.2mm;background:linear-gradient(90deg,#ed4728,#d71935)!important;color:#fff!important;font-size:11pt!important;font-weight:900!important;letter-spacing:.04em}
+}
