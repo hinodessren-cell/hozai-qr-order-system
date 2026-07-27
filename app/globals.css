@@ -217,3 +217,37 @@ button:disabled{cursor:wait;opacity:.68}
   .printItemCards .numberWithUnit .inlineItemUnit{width:11mm!important;text-align:left!important}
   .printItemCards .itemActions,.printItemCards .optionsMenu{display:none!important}
 }
+@media print{
+  .printItemCards{
+    width:186mm!important;
+    max-width:186mm!important;
+    grid-template-columns:repeat(3,60mm)!important;
+    grid-auto-rows:40mm!important;
+    column-gap:3mm!important;
+    row-gap:3mm!important
+  }
+  .printItemCards .inlineItemCard{
+    box-sizing:border-box!important;
+    width:60mm!important;
+    height:40mm!important;
+    min-height:40mm!important;
+    padding:2mm!important;
+    border-radius:0!important;
+    outline:.3mm dashed #59616c!important;
+    outline-offset:.8mm!important
+  }
+  .printItemCards .inlineItemField{grid-template-columns:9mm minmax(0,1fr)!important;gap:.7mm!important;margin-right:18mm!important;font-size:6.5pt!important}
+  .printItemCards .inlineItemCard input{padding:.2mm .5mm!important;margin-left:-.5mm!important}
+  .printItemCards .inlineItemCategory{font-size:6.5pt!important}
+  .printItemCards .inlineItemCode{font-size:10pt!important}
+  .printItemCards .inlineItemName{font-size:7.5pt!important}
+  .printItemCards .inlineItemMemoField{grid-template-columns:9mm minmax(0,1fr)!important;gap:.7mm!important;font-size:6.2pt!important}
+  .printItemCards .inlineItemMemo{font-size:6.2pt!important}
+  .printItemCards .itemCardQr{right:2mm!important;top:7mm!important}
+  .printItemCards .itemCardQr .fakeQr{width:16mm!important;height:16mm!important;padding:.6mm!important;border-width:.5mm!important}
+  .printItemCards .inlineItemNumbers{gap:.6mm!important;padding-top:.6mm!important}
+  .printItemCards .inlineItemNumbers label{font-size:6.2pt!important}
+  .printItemCards .inlineItemNumbers input{font-size:6.5pt!important}
+  .printItemCards .numberWithUnit input[type=number]{width:7mm!important}
+  .printItemCards .numberWithUnit .inlineItemUnit{width:8mm!important}
+}
