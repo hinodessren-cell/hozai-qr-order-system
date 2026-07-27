@@ -235,7 +235,7 @@ button:disabled{cursor:wait;opacity:.68}
     height:var(--board-height)!important;
     min-height:var(--board-height)!important;
     padding:2mm!important;
-    border:.3mm dashed #59616c!important;
+    border:.35mm solid #000!important;
     border-radius:0!important;
     outline:0!important
   }
