@@ -25,7 +25,7 @@ const defaultSettings = {
   accent: "#d61f2c", density: "comfortable", cardColumns: 3, showMemo: true, showLocation: true,
   defaultQty: 1, boardColumns: 3, boardRows: 4, boardWidth: 60, boardHeight: 40,
   orderLabel: "発注待ち", arrivalLabel: "入荷待ち", doneLabel: "入荷済み",
-  notifyNew: true, notifyArrival: true, siteName: "日の出製作所",
+  notifyNew: true, notifyArrival: true, siteName: "日の出製作所", ipadFullscreen: false,
 };
 
 export default function Home() {
@@ -38,6 +38,7 @@ export default function Home() {
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState<Item | "new" | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
+  const [ipadDevice, setIpadDevice] = useState(false);
   const [pushPublicKey, setPushPublicKey] = useState("");
   const [pushStatus, setPushStatus] = useState("親機通知");
   const [unreadOrders, setUnreadOrders] = useState(0);
@@ -252,7 +253,7 @@ export default function Home() {
   ];
 
   return (
-    <div className={`app density-${settings.density}`} style={{ "--accent": settings.accent } as React.CSSProperties}>
+    <div className={`app density-${settings.density}${ipadDevice && settings.ipadFullscreen ? " ipadFullscreen" : ""}`} style={{ "--accent": settings.accent } as React.CSSProperties}>
       <aside className="sidebar">
         <div className="brand" aria-label="MATERIAL ORDER CONTROL"><span className="brandLogo"/><div className="brandControl"><span>MATERIAL</span><strong>ORDER CONTROL</strong></div></div>
         <nav>{nav.map(([id, label, icon]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => openTab(id)}><span>{icon}</span><span className="navLabel">{label}</span>{id === "orders" && unreadOrders > 0 && <b className="notificationBadge" aria-label={`未確認 ${unreadOrders}件`}>{unreadOrders > 99 ? "99+" : unreadOrders}</b>}</button>)}</nav>
@@ -277,6 +278,7 @@ export default function Home() {
 
         {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><button className="outline" onClick={() => void printQrBoards()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div><div className="integratedPrintBoards"><QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} /></div></section>}
       </main>
+      {ipadDevice && settings.ipadFullscreen && <button className="ipadFullscreenExit" onClick={() => { const next = { ...settings, ipadFullscreen: false }; setSettings(next); void postState({ action: "settings", settings: next }).catch(showRequestError); }}>全画面を解除</button>}
 
       {scanOpen && <QrScanner items={items} close={() => setScanOpen(false)} found={(item) => { setScanOpen(false); setSelectedItem(item); }} />}
 
@@ -359,6 +361,7 @@ function OptionsMenu({ label, children }: { label: string; children: React.React
 function FakeQr({ value }: { value: string }) {
   const [source, setSource] = useState(`/qr/${encodeURIComponent(value)}.svg`);
   useEffect(() => {
+    setIpadDevice(isIPad());
     let active = true;
     const url = `${window.location.origin}/?item=${encodeURIComponent(value)}`;
     void QRCode.toDataURL(url, { errorCorrectionLevel: "M", margin: 1, width: 320 }).then((generated) => { if (active) setSource(generated); });
@@ -388,6 +391,10 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
     const item = itemsRef.current.find((row) => row.id.toLowerCase() === id.toLowerCase());
     if (item) foundRef.current(item); else setMessage("該当する品目が見つかりません。管理番号をご確認ください。");
   }, []);
+
+  useEffect(() => {
+    if (ipadDevice && settings.ipadFullscreen) setTab("orders");
+  }, [ipadDevice, settings.ipadFullscreen]);
 
   useEffect(() => {
     let scanner: QrScannerEngine | undefined;
@@ -457,7 +464,7 @@ function ItemEditor({ item, close, save }: { item: Item | null; close: () => voi
 function SettingsPanel({ settings, setSettings, pushStatus, enableNotifications, close, save }: { settings: typeof defaultSettings; setSettings: React.Dispatch<React.SetStateAction<typeof defaultSettings>>; pushStatus: string; enableNotifications: () => Promise<void>; close: () => void; save: () => void }) {
   const update = (key: keyof typeof defaultSettings, value: string | number | boolean) => setSettings((s) => ({ ...s, [key]: value }));
   return <div className="drawerBackdrop" onClick={close}><aside className="settingsDrawer" onClick={(e) => e.stopPropagation()}><div className="drawerHead"><div><p className="eyebrow">CUSTOMIZE</p><h2>詳細設定</h2></div><button className="close" onClick={close}>×</button></div>
-    <fieldset><legend>表示とレイアウト</legend><label>システム名<input value={settings.siteName} onChange={(e) => update("siteName", e.target.value)} /></label><label>アクセントカラー<input type="color" value={settings.accent} onChange={(e) => update("accent", e.target.value)} /></label><label>表示密度<select value={settings.density} onChange={(e) => update("density", e.target.value)}><option value="comfortable">ゆったり</option><option value="compact">コンパクト</option></select></label><label>カード列数<input type="range" min="1" max="4" value={settings.cardColumns} onChange={(e) => update("cardColumns", Number(e.target.value))}/><b>{settings.cardColumns}列</b></label><Check label="備考を表示" value={settings.showMemo} change={(v) => update("showMemo", v)}/><Check label="保管場所を表示" value={settings.showLocation} change={(v) => update("showLocation", v)}/></fieldset>
+    <fieldset><legend>表示とレイアウト</legend><label>システム名<input value={settings.siteName} onChange={(e) => update("siteName", e.target.value)} /></label><label>アクセントカラー<input type="color" value={settings.accent} onChange={(e) => update("accent", e.target.value)} /></label><label>表示密度<select value={settings.density} onChange={(e) => update("density", e.target.value)}><option value="comfortable">ゆったり</option><option value="compact">コンパクト</option></select></label><label>カード列数<input type="range" min="1" max="4" value={settings.cardColumns} onChange={(e) => update("cardColumns", Number(e.target.value))}/><b>{settings.cardColumns}列</b></label><Check label="備考を表示" value={settings.showMemo} change={(v) => update("showMemo", v)}/><Check label="保管場所を表示" value={settings.showLocation} change={(v) => update("showLocation", v)}/><Check label="iPad全画面モード" value={settings.ipadFullscreen} change={(v) => update("ipadFullscreen", v)}/></fieldset>
     <fieldset><legend>発注フロー</legend><label>発注待ちの表示名<input value={settings.orderLabel} onChange={(e) => update("orderLabel", e.target.value)} /></label><label>入荷待ちの表示名<input value={settings.arrivalLabel} onChange={(e) => update("arrivalLabel", e.target.value)} /></label><label>完了の表示名<input value={settings.doneLabel} onChange={(e) => update("doneLabel", e.target.value)} /></label><label>初期発注数量<input type="number" min="1" value={settings.defaultQty} onChange={(e) => update("defaultQty", Number(e.target.value))}/></label><Check label="新規発注を通知" value={settings.notifyNew} change={(v) => update("notifyNew", v)}/><Check label="入荷を通知" value={settings.notifyArrival} change={(v) => update("notifyArrival", v)}/></fieldset>
     <fieldset><legend>QR看板・印刷</legend><label>列数<input type="number" min="1" max="4" value={settings.boardColumns} onChange={(e) => update("boardColumns", Number(e.target.value))}/></label><label>行数<input type="number" min="1" max="8" value={settings.boardRows} onChange={(e) => update("boardRows", Number(e.target.value))}/></label><div className="two"><label>幅 mm<input type="number" value={settings.boardWidth} onChange={(e) => update("boardWidth", Number(e.target.value))}/></label><label>高さ mm<input type="number" value={settings.boardHeight} onChange={(e) => update("boardHeight", Number(e.target.value))}/></label></div></fieldset>
     <fieldset><legend>親機通知</legend><button className="outline wide" type="button" onClick={() => void enableNotifications()}>● {pushStatus}</button></fieldset>
