@@ -137,7 +137,7 @@ button:disabled{cursor:wait;opacity:.68}
 .ipadFullscreen .sectionTitle{margin-top:0!important}
 .ipadFullscreen .pipelineBoard{min-height:calc(100dvh - 92px);grid-template-columns:repeat(3,minmax(0,1fr))!important}
 .pipelineColumn{display:grid;grid-template-rows:auto minmax(0,1fr);min-height:0}
-.pipelineColumn>div{min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.pipelineColumn>div{min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;touch-action:pan-y;align-content:start}
 .ipadFullscreen .pipelineColumn{height:calc(100dvh - 76px);max-height:calc(100dvh - 76px);overflow:hidden}
 .ipadFullscreen .pipelineColumn>div{height:100%;scrollbar-gutter:stable}
 .ipadFullscreenControls{position:fixed;left:14px;right:14px;bottom:12px;z-index:45;display:flex;justify-content:space-between;gap:7px;pointer-events:none}
@@ -145,6 +145,11 @@ button:disabled{cursor:wait;opacity:.68}
 @media (min-width:701px) and (max-width:1100px){
   .sidebar .settingsButton{display:flex!important;width:100%!important;min-height:54px!important;justify-content:center!important;font-size:0!important;color:#fff!important}
   .sidebar .settingsButton::before{content:"⚙";font-size:25px!important;line-height:1}
+}
+@media (min-width:701px) and (max-width:1180px){
+  .pipelineBoard{height:calc(100dvh - 150px)!important;min-height:0!important;overflow:hidden!important;align-items:stretch!important}
+  .pipelineColumn{height:100%!important;max-height:100%!important;min-height:0!important;overflow:hidden!important}
+  .ipadFullscreen .pipelineBoard{height:calc(100dvh - 56px)!important}
 }
 .orderModal textarea{width:100%;min-height:92px;padding:12px;border:1px solid var(--line);background:#faf9f6;font:inherit;resize:vertical}
 .historyOrderNote{grid-column:1/-1;margin:4px 0 0!important;color:#4d5968!important;font-size:11px!important;line-height:1.45}
