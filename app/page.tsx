@@ -341,13 +341,13 @@ function QrBoards({ items, columns, rows, width, height, qrSources }: { items: I
 
 function PrintItemCard({ item, qrSource }: { item: Item; qrSource: string }) {
   return <article className="itemCard inlineItemCard">
-    <label className="inlineItemField"><span>カテゴリ</span><input className="inlineItemCategory" readOnly value={item.category}/></label>
+    <div className="inlineItemField"><span>カテゴリ</span><span className="printItemValue inlineItemCategory">{item.category}</span></div>
     <div className="itemCardQr"><img className="fakeQr" src={qrSource} alt=""/></div>
-    <label className="inlineItemField"><span>品番</span><input className="inlineItemCode" readOnly value={item.code}/></label>
-    <label className="inlineItemField"><span>品名</span><input className="inlineItemName" readOnly value={item.name}/></label>
-    <label className="inlineItemMemoField"><span>保管場所</span><input className="inlineItemMemo" readOnly value={item.location}/></label>
-    <label className="inlineItemMemoField"><span>備考</span><input className="inlineItemMemo" readOnly value={item.memo}/></label>
-    <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><input readOnly value={item.qty}/><input className="inlineItemUnit" readOnly value={item.unit}/></span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><input readOnly value={item.orderPoint}/><span className="fixedUnit">{item.unit}</span></span></label></div>
+    <div className="inlineItemField"><span>品番</span><span className="printItemValue inlineItemCode">{item.code}</span></div>
+    <div className="inlineItemField"><span>品名</span><span className="printItemValue inlineItemName">{item.name}</span></div>
+    <div className="inlineItemMemoField"><span>保管場所</span><span className="printItemValue inlineItemMemo">{item.location}</span></div>
+    <div className="inlineItemMemoField"><span>備考</span><span className="printItemValue inlineItemMemo">{item.memo}</span></div>
+    <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><strong>{item.qty}</strong><span className="fixedUnit">{item.unit}</span></span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><strong>{item.orderPoint}</strong><span className="fixedUnit">{item.unit}</span></span></label></div>
   </article>;
 }
 

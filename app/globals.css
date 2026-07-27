@@ -237,14 +237,17 @@ button:disabled{cursor:wait;opacity:.68}
     padding:2mm!important;
     border:.35mm solid #000!important;
     border-radius:0!important;
-    outline:0!important
+    outline:0!important;
+    gap:.25mm!important;
+    line-height:1.05!important
   }
-  .printItemCards .inlineItemField{grid-template-columns:9mm minmax(0,1fr)!important;gap:.7mm!important;margin-right:21mm!important;font-size:7.2pt!important}
+  .printItemCards .inlineItemField{grid-template-columns:9mm minmax(0,1fr)!important;gap:.7mm!important;margin-right:21mm!important;font-size:7.2pt!important;min-height:0!important}
   .printItemCards .inlineItemCard input{padding:.2mm .5mm!important;margin-left:-.5mm!important}
+  .printItemCards .printItemValue{display:-webkit-box!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;overflow-wrap:anywhere!important;word-break:break-word!important;line-height:1.05!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:1!important}
   .printItemCards .inlineItemCategory{font-size:7.2pt!important}
   .printItemCards .inlineItemCode{font-size:11pt!important}
-  .printItemCards .inlineItemName{font-size:8.5pt!important}
-  .printItemCards .inlineItemMemoField{grid-template-columns:9mm minmax(0,1fr)!important;gap:.7mm!important;font-size:6.8pt!important}
+  .printItemCards .inlineItemName{font-size:8.5pt!important;-webkit-line-clamp:2!important;max-height:7mm!important}
+  .printItemCards .inlineItemMemoField{grid-template-columns:9mm minmax(0,1fr)!important;gap:.7mm!important;margin-right:21mm!important;font-size:6.8pt!important;min-height:0!important}
   .printItemCards .inlineItemMemo{font-size:6.8pt!important}
   .printItemCards .itemCardQr{right:1.5mm!important;top:6mm!important}
   .printItemCards .itemCardQr .fakeQr{width:19mm!important;height:19mm!important;padding:.6mm!important;border-width:.5mm!important}
@@ -252,6 +255,7 @@ button:disabled{cursor:wait;opacity:.68}
   .printItemCards .inlineItemNumbers label{font-size:6.8pt!important}
   .printItemCards .inlineItemNumbers input{font-size:7.2pt!important}
   .printItemCards .numberWithUnit{display:inline-flex!important;align-items:center!important;justify-content:flex-end!important;gap:0!important;margin-left:auto!important}
+  .printItemCards .numberWithUnit strong{font-size:7.2pt!important;line-height:1!important}
   .printItemCards .numberWithUnit input[type=number]{width:6mm!important;padding:0!important;margin:0!important;text-align:right!important}
   .printItemCards .numberWithUnit .inlineItemUnit{width:6mm!important;padding:0!important;margin:0!important;text-align:left!important}
   .printItemCards .numberWithUnit .fixedUnit{margin-left:.3mm!important;white-space:nowrap!important}
