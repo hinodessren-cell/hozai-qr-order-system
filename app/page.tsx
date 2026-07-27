@@ -235,7 +235,7 @@ export default function Home() {
 
   const nav = [
     ["dashboard", "概要", "▦"], ["scan", "カメラ", "◎"], ["orders", "発注管理", "⇄"],
-    ["history", "履歴", "◷"], ["boards", "QR看板", "▤"], ["items", "品目", "□"],
+    ["history", "履歴", "◷"], ["items", "品目・看板", "▤"],
   ];
 
   return (
@@ -262,9 +262,7 @@ export default function Home() {
         {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
         {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="すべての履歴" />}
 
-        {tab === "items" && <section><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS</p><h2>品目マスター</h2><span className="editHint">文字をタップすると、その場で入力できます。Enterまたは枠外のタップで保存します。</span></div><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div></section>}
-
-        {tab === "boards" && <QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} />}
+        {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div><div className="sectionTitleActions"><button className="outline" onClick={() => window.print()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div><div className="integratedPrintBoards"><QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} /></div></section>}
       </main>
 
       {scanOpen && <QrScanner items={items} close={() => setScanOpen(false)} found={(item) => { setScanOpen(false); setSelectedItem(item); }} />}
@@ -322,9 +320,10 @@ function InlineItemCard({ item, save, edit, order }: { item: Item; showLocation:
   const keyDown = (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") event.currentTarget.blur(); };
   const field = (key: keyof Item, label: string, className = "") => <input className={className} aria-label={label} value={String(draft[key])} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>;
   return <article className="itemCard inlineItemCard">
-    {field("category", "カテゴリ", "inlineItemCategory")}
-    {field("code", "品番", "inlineItemCode")}
-    {field("name", "品名", "inlineItemName")}
+    <label className="inlineItemField"><span>カテゴリ</span>{field("category", "カテゴリ", "inlineItemCategory")}</label>
+    <div className="itemCardQr"><FakeQr value={item.id}/></div>
+    <label className="inlineItemField"><span>品番</span>{field("code", "品番", "inlineItemCode")}</label>
+    <label className="inlineItemField"><span>品名</span>{field("name", "品名", "inlineItemName")}</label>
     <label className="inlineItemMemoField"><span>備考</span>{field("memo", "備考", "inlineItemMemo")}</label>
     <div className="inlineItemNumbers"><label>発注数量 <input aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</label><label className="orderPointField">発注点 <input aria-label="発注点" type="number" min="0" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: Math.max(0, Number(event.target.value) || 0) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{draft.unit}</label></div>
     <OptionsMenu label={`${item.name}の操作`}><button onClick={edit}>詳細編集</button></OptionsMenu>
