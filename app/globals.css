@@ -151,6 +151,27 @@ button:disabled{cursor:wait;opacity:.68}
   .pipelineColumn{height:100%!important;max-height:100%!important;min-height:0!important;overflow:hidden!important}
   .ipadFullscreen .pipelineBoard{height:calc(100dvh - 56px)!important}
 }
+@media (min-width:1181px){
+  .pipelineBoard{height:calc(100dvh - 150px);min-height:0;overflow:hidden;align-items:stretch}
+  .pipelineColumn{height:100%;max-height:100%;min-height:0;overflow:hidden}
+}
+@media print{
+  .integratedPrintBoards,.integratedPrintBoards>section{width:200mm!important;max-width:200mm!important}
+  .printItemCards{width:186mm!important;max-width:186mm!important;grid-template-columns:repeat(3,60mm)!important;grid-auto-rows:40mm!important;column-gap:3mm!important;row-gap:3mm!important}
+  .printItemCards .inlineItemCard{width:60mm!important;height:40mm!important;min-height:40mm!important;padding:2mm!important;border-radius:0!important;outline-offset:.8mm!important}
+  .printItemCards .inlineItemField{grid-template-columns:9mm minmax(0,1fr)!important;gap:.7mm!important;margin-right:18mm!important;font-size:6.5pt!important}
+  .printItemCards .inlineItemMemoField{grid-template-columns:9mm minmax(0,1fr)!important;gap:.7mm!important;font-size:6.2pt!important}
+  .printItemCards .inlineItemCategory{font-size:6.5pt!important}
+  .printItemCards .inlineItemCode{font-size:10pt!important}
+  .printItemCards .inlineItemName{font-size:7.5pt!important}
+  .printItemCards .inlineItemMemo{font-size:6.2pt!important}
+  .printItemCards .itemCardQr{right:2mm!important;top:7mm!important}
+  .printItemCards .itemCardQr .fakeQr{width:16mm!important;height:16mm!important;padding:.6mm!important;border-width:.5mm!important}
+  .printItemCards .inlineItemNumbers{gap:.6mm!important;padding-top:.6mm!important}
+  .printItemCards .inlineItemNumbers label{font-size:6.2pt!important}
+  .printItemCards .numberWithUnit input[type=number]{width:7mm!important;font-size:6.5pt!important}
+  .printItemCards .numberWithUnit .inlineItemUnit{width:8mm!important;font-size:6.5pt!important}
+}
 .orderModal textarea{width:100%;min-height:92px;padding:12px;border:1px solid var(--line);background:#faf9f6;font:inherit;resize:vertical}
 .historyOrderNote{grid-column:1/-1;margin:4px 0 0!important;color:#4d5968!important;font-size:11px!important;line-height:1.45}
 .printMenuDots,.printOrderButton{display:none}
