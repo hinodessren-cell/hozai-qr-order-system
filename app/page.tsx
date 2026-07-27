@@ -35,6 +35,7 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [settings, setSettings] = useState(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsNotice, setSettingsNotice] = useState("");
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState<Item | "new" | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
@@ -76,7 +77,11 @@ export default function Home() {
           setStatusAlerts({ "発注待ち": 0, "入荷待ち": 0, "入荷済み": 0 });
         }
       }
-      if (data?.settings) setSettings((s) => ({ ...s, ...data.settings }));
+      if (data?.settings) {
+        let deviceSettings = {};
+        try { deviceSettings = JSON.parse(window.localStorage.getItem("device-settings") ?? "{}"); } catch { deviceSettings = {}; }
+        setSettings((s) => ({ ...s, ...data.settings, ...deviceSettings }));
+      }
       if (data?.pushPublicKey) setPushPublicKey(data.pushPublicKey);
       if (initial) {
         const search = new URLSearchParams(window.location.search);
@@ -255,7 +260,7 @@ export default function Home() {
   return (
     <div className={`app density-${settings.density}${ipadDevice && settings.ipadFullscreen ? " ipadFullscreen" : ""}`} style={{ "--accent": settings.accent } as React.CSSProperties}>
       <aside className="sidebar">
-        <div className="brand" aria-label="MATERIAL ORDER CONTROL"><span className="brandLogo"/><div className="brandControl"><span>MATERIAL</span><strong>ORDER CONTROL</strong></div></div>
+        <div className="brand" aria-label="MATERIAL ORDER CONTROL"><span className="brandLogo"/><div className="brandControl"><span>MATERIAL</span><strong>{settings.siteName}</strong></div></div>
         <nav>{nav.map(([id, label, icon]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => openTab(id)}><span>{icon}</span><span className="navLabel">{label}</span>{id === "orders" && unreadOrders > 0 && <b className="notificationBadge" aria-label={`未確認 ${unreadOrders}件`}>{unreadOrders > 99 ? "99+" : unreadOrders}</b>}</button>)}</nav>
         <button className="settingsButton" onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button>
       </aside>
@@ -278,7 +283,8 @@ export default function Home() {
 
         {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><button className="outline" onClick={() => void printQrBoards()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div><div className="integratedPrintBoards"><QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} /></div></section>}
       </main>
-      {ipadDevice && settings.ipadFullscreen && <div className="ipadFullscreenControls"><button onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button><button onClick={() => { const next = { ...settings, ipadFullscreen: false }; setSettings(next); void postState({ action: "settings", settings: next }).catch(showRequestError); }}>全画面を解除</button></div>}
+      {ipadDevice && settings.ipadFullscreen && <div className="ipadFullscreenControls"><button onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button><button onClick={() => { const next = { ...settings, ipadFullscreen: false }; setSettings(next); void persistSettings(next).then(() => { setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); }).catch(showRequestError); }}>全画面を解除</button></div>}
+      {settingsNotice && <div className="settingsToast" role="status">{settingsNotice}</div>}
 
       {scanOpen && <QrScanner items={items} close={() => setScanOpen(false)} found={(item) => { setScanOpen(false); setSelectedItem(item); }} />}
 
@@ -286,7 +292,7 @@ export default function Home() {
 
       {editingItem && <ItemEditor item={editingItem === "new" ? null : editingItem} close={() => setEditingItem(null)} save={saveItem} />}
 
-      {settingsOpen && <SettingsPanel settings={settings} setSettings={setSettings} pushStatus={pushStatus} enableNotifications={enableParentNotifications} close={() => setSettingsOpen(false)} save={async () => { try { await postState({ action: "settings", settings }); setSettingsOpen(false); } catch (error) { showRequestError(error); } }} />}
+      {settingsOpen && <SettingsPanel settings={settings} setSettings={setSettings} pushStatus={pushStatus} enableNotifications={enableParentNotifications} close={() => setSettingsOpen(false)} save={async () => { await persistSettings(settings); setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); setSettingsOpen(false); }} />}
     </div>
   );
 }
@@ -326,7 +332,7 @@ function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise
   </div></article>;
 }
 
-function InlineItemCard({ item, save, edit, order }: { item: Item; showLocation: boolean; save: (item: Item) => Promise<void>; edit: () => void; order: () => void }) {
+function InlineItemCard({ item, showLocation, save, edit, order }: { item: Item; showLocation: boolean; save: (item: Item) => Promise<void>; edit: () => void; order: () => void }) {
   const [draft, setDraft] = useState(item);
   const commit = async () => {
     if (JSON.stringify(draft) === JSON.stringify(item)) return;
@@ -339,6 +345,7 @@ function InlineItemCard({ item, save, edit, order }: { item: Item; showLocation:
     <div className="itemCardQr"><FakeQr value={item.id}/></div>
     <label className="inlineItemField"><span>品番</span>{field("code", "品番", "inlineItemCode")}</label>
     <label className="inlineItemField"><span>品名</span>{field("name", "品名", "inlineItemName")}</label>
+    {showLocation && <label className="inlineItemMemoField"><span>保管場所</span>{field("location", "保管場所", "inlineItemMemo")}</label>}
     <label className="inlineItemMemoField"><span>備考</span>{field("memo", "備考", "inlineItemMemo")}</label>
     <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><input aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><input aria-label="発注点" type="number" min="0" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: Math.max(0, Number(event.target.value) || 0) })} onBlur={() => void commit()} onKeyDown={keyDown}/><span className="fixedUnit">{draft.unit}</span></span></label></div>
     <OptionsMenu label={`${item.name}の操作`}><button onClick={edit}>詳細編集</button></OptionsMenu>
@@ -461,14 +468,15 @@ function ItemEditor({ item, close, save }: { item: Item | null; close: () => voi
   return <div className="modalBackdrop" onClick={close}><section className="orderModal itemEditor" onClick={(event) => event.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">MASTER ITEM</p><h2>{isNew ? "新規品目登録" : "品目を編集"}</h2><label>品番（必須）<input autoFocus value={draft.code} onChange={(event) => update("code", event.target.value)} /></label><label>品名（必須）<input value={draft.name} onChange={(event) => update("name", event.target.value)} /></label><div className="editorTwo"><label>カテゴリ<input value={draft.category} onChange={(event) => update("category", event.target.value)} /></label><label>保管場所<input value={draft.location} onChange={(event) => update("location", event.target.value)} /></label></div><div className="editorTwo"><label>発注数量<input type="number" min="1" max="10000" value={draft.qty} onChange={(event) => update("qty", Math.max(1, Number(event.target.value) || 1))} /></label><label>発注点<input type="number" min="0" max="10000" value={draft.orderPoint} onChange={(event) => update("orderPoint", Math.max(0, Number(event.target.value) || 0))} /></label></div><label>単位<input value={draft.unit} onChange={(event) => update("unit", event.target.value)} /></label><label>備考<textarea value={draft.memo} onChange={(event) => update("memo", event.target.value)} /></label><button className="primary wide" disabled={saving || !draft.code.trim() || !draft.name.trim()} onClick={() => void submit()}>{saving ? "保存中…" : isNew ? "この品目を登録" : "変更を保存"}</button></section></div>;
 }
 
-function SettingsPanel({ settings, setSettings, pushStatus, enableNotifications, close, save }: { settings: typeof defaultSettings; setSettings: React.Dispatch<React.SetStateAction<typeof defaultSettings>>; pushStatus: string; enableNotifications: () => Promise<void>; close: () => void; save: () => void }) {
+function SettingsPanel({ settings, setSettings, pushStatus, enableNotifications, close, save }: { settings: typeof defaultSettings; setSettings: React.Dispatch<React.SetStateAction<typeof defaultSettings>>; pushStatus: string; enableNotifications: () => Promise<void>; close: () => void; save: () => Promise<void> }) {
+  const [saving, setSaving] = useState(false);
   const update = (key: keyof typeof defaultSettings, value: string | number | boolean) => setSettings((s) => ({ ...s, [key]: value }));
   return <div className="drawerBackdrop" onClick={close}><aside className="settingsDrawer" onClick={(e) => e.stopPropagation()}><div className="drawerHead"><div><p className="eyebrow">CUSTOMIZE</p><h2>詳細設定</h2></div><button className="close" onClick={close}>×</button></div>
     <fieldset><legend>表示とレイアウト</legend><label>システム名<input value={settings.siteName} onChange={(e) => update("siteName", e.target.value)} /></label><label>アクセントカラー<input type="color" value={settings.accent} onChange={(e) => update("accent", e.target.value)} /></label><label>表示密度<select value={settings.density} onChange={(e) => update("density", e.target.value)}><option value="comfortable">ゆったり</option><option value="compact">コンパクト</option></select></label><label>カード列数<input type="range" min="1" max="4" value={settings.cardColumns} onChange={(e) => update("cardColumns", Number(e.target.value))}/><b>{settings.cardColumns}列</b></label><Check label="備考を表示" value={settings.showMemo} change={(v) => update("showMemo", v)}/><Check label="保管場所を表示" value={settings.showLocation} change={(v) => update("showLocation", v)}/><Check label="iPad全画面モード" value={settings.ipadFullscreen} change={(v) => update("ipadFullscreen", v)}/></fieldset>
     <fieldset><legend>発注フロー</legend><label>発注待ちの表示名<input value={settings.orderLabel} onChange={(e) => update("orderLabel", e.target.value)} /></label><label>入荷待ちの表示名<input value={settings.arrivalLabel} onChange={(e) => update("arrivalLabel", e.target.value)} /></label><label>完了の表示名<input value={settings.doneLabel} onChange={(e) => update("doneLabel", e.target.value)} /></label><label>初期発注数量<input type="number" min="1" value={settings.defaultQty} onChange={(e) => update("defaultQty", Number(e.target.value))}/></label><Check label="新規発注を通知" value={settings.notifyNew} change={(v) => update("notifyNew", v)}/><Check label="入荷を通知" value={settings.notifyArrival} change={(v) => update("notifyArrival", v)}/></fieldset>
     <fieldset><legend>QR看板・印刷</legend><label>列数<input type="number" min="1" max="4" value={settings.boardColumns} onChange={(e) => update("boardColumns", Number(e.target.value))}/></label><label>行数<input type="number" min="1" max="8" value={settings.boardRows} onChange={(e) => update("boardRows", Number(e.target.value))}/></label><div className="two"><label>幅 mm<input type="number" value={settings.boardWidth} onChange={(e) => update("boardWidth", Number(e.target.value))}/></label><label>高さ mm<input type="number" value={settings.boardHeight} onChange={(e) => update("boardHeight", Number(e.target.value))}/></label></div></fieldset>
     <fieldset><legend>親機通知</legend><button className="outline wide" type="button" onClick={() => void enableNotifications()}>● {pushStatus}</button></fieldset>
-    <div className="drawerActions"><button className="outline" onClick={() => setSettings(defaultSettings)}>初期値に戻す</button><button className="primary" onClick={save}>設定を保存</button></div>
+    <div className="drawerActions"><button className="outline" onClick={() => setSettings(defaultSettings)}>初期値に戻す</button><button className="primary saveSettingsButton" disabled={saving} onClick={async () => { setSaving(true); try { await save(); } catch (error) { showRequestError(error); setSaving(false); } }}>{saving ? "保存中…" : "設定を保存"}</button></div>
   </aside></div>;
 }
 
@@ -491,6 +499,14 @@ async function postState(payload: Record<string, unknown>) {
 function showRequestError(error: unknown) {
   if (error instanceof Error && error.message === "ログイン画面へ移動します。") return;
   window.alert(error instanceof Error ? error.message : "操作を完了できませんでした。");
+}
+
+async function persistSettings(settings: typeof defaultSettings) {
+  window.localStorage.setItem("device-settings", JSON.stringify(settings));
+  const response = await fetch("/api/state", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "settings", settings }) });
+  if (response.ok || response.status === 401) return;
+  const data = await response.json().catch(() => null) as { error?: string } | null;
+  throw new Error(data?.error ?? "設定を保存できませんでした。");
 }
 
 function isIPhone() {
