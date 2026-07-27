@@ -46,7 +46,6 @@ export default function Home() {
   const seenOrderIds = useRef<Set<string> | null>(null);
   const acknowledgedOrderIds = useRef<Set<string>>(new Set());
   const acknowledgedStatusEvents = useRef<Set<string>>(new Set());
-  const nativeCameraInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -102,23 +101,8 @@ export default function Home() {
 
   const filtered = useMemo(() => orders.filter((o) => `${o.code} ${o.name} ${o.category} ${o.purchaser}`.toLowerCase().includes(query.toLowerCase())), [orders, query]);
   const counts = (status: Status) => orders.filter((o) => o.status === status).length;
-  const scanNativeCameraImage = async (file?: File) => {
-    if (!file) return;
-    try {
-      const result = await QrScannerEngine.scanImage(file, { returnDetailedScanResult: true });
-      let id = result.data.trim();
-      try { id = new URL(id).searchParams.get("item") ?? id; } catch { /* 管理番号のみのQRコード */ }
-      const item = items.find((row) => row.id.toLowerCase() === id.toLowerCase());
-      if (item) setSelectedItem(item);
-      else window.alert("このQRコードに対応する品目が見つかりませんでした。");
-    } catch {
-      window.alert("QRコードを読み取れませんでした。QRコード全体が写るように、もう一度撮影してください。");
-    } finally {
-      if (nativeCameraInput.current) nativeCameraInput.current.value = "";
-    }
-  };
   const openTab = (id: string) => {
-    if (id === "scan") { nativeCameraInput.current?.click(); return; }
+    if (id === "scan") { setScanOpen(true); return; }
     setTab(id);
     if (id === "orders") {
       orders.forEach((order) => acknowledgedOrderIds.current.add(order.orderId));
@@ -189,6 +173,17 @@ export default function Home() {
       showRequestError(error);
     }
   }
+  async function returnToOrdered(orderId: string) {
+    const current = orders.find((order) => order.orderId === orderId);
+    if (!current || current.status !== "入荷待ち") return;
+    setOrders((rows) => rows.map((order) => order.orderId === orderId ? { ...order, status: "発注待ち" } : order));
+    try {
+      await postState({ action: "status", orderId, status: "発注待ち" });
+    } catch (error) {
+      setOrders((rows) => rows.map((order) => order.orderId === orderId ? { ...order, status: current.status } : order));
+      showRequestError(error);
+    }
+  }
   async function updateBoardItem(updated: Item) {
     const previous = items.find((item) => item.id === updated.id);
     setItems((current) => current.map((item) => item.id === updated.id ? updated : item));
@@ -245,7 +240,6 @@ export default function Home() {
 
   return (
     <div className={`app density-${settings.density}`} style={{ "--accent": settings.accent } as React.CSSProperties}>
-      <input ref={nativeCameraInput} className="nativeCameraInput" type="file" accept="image/*" capture="environment" aria-label="カメラでQRコードを撮影" onChange={(event) => void scanNativeCameraImage(event.target.files?.[0])}/>
       <aside className="sidebar">
         <div className="brand" aria-label="MATERIAL ORDER CONTROL"><span className="brandLogo"/><div className="brandControl"><span>MATERIAL</span><strong>ORDER CONTROL</strong></div></div>
         <nav>{nav.map(([id, label, icon]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => openTab(id)}><span>{icon}</span><span className="navLabel">{label}</span>{id === "orders" && unreadOrders > 0 && <b className="notificationBadge" aria-label={`未確認 ${unreadOrders}件`}>{unreadOrders > 99 ? "99+" : unreadOrders}</b>}</button>)}</nav>
@@ -262,11 +256,11 @@ export default function Home() {
             <button className="stat gray" onClick={() => openStatus("入荷済み")}><small>入荷済み</small>{statusAlerts["入荷済み"] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<strong>{counts("入荷済み")}</strong><span>件</span></button>
             <article className="stat total"><small>登録品目</small><strong>{items.length.toLocaleString("ja-JP")}</strong><span>品</span></article>
           </section>
-          <OrderList orders={orders.filter((o) => o.status === "発注待ち" || o.status === "入荷待ち").slice(0, 5)} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} showMemo={settings.showMemo} title="進行中の発注" />
+          <OrderList orders={orders.filter((o) => o.status === "発注待ち" || o.status === "入荷待ち").slice(0, 5)} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="進行中の発注" />
         </>}
 
-        {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
-        {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} showMemo={settings.showMemo} title="すべての履歴" />}
+        {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
+        {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="すべての履歴" />}
 
         {tab === "items" && <section><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS</p><h2>品目マスター</h2><span className="editHint">文字をタップすると、その場で入力できます。Enterまたは枠外のタップで保存します。</span></div><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div></section>}
 
@@ -284,15 +278,15 @@ export default function Home() {
   );
 }
 
-function OrderList({ orders, onAdvance, onCancel, onReturn, showMemo, title }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; onReturn: (id: string) => void; showMemo: boolean; title: string }) {
-  return <section className="orderSection"><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>{title}</h2></div></div><div className="orderList">{orders.map((o) => <article className="orderRow" key={o.orderId}>{o.status !== "取消" && <OptionsMenu label={`${o.name}の操作`}>{o.status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(o.orderId)}>入荷待ちへ戻す</button>}<button onClick={() => onCancel(o.orderId)}>発注取消</button></OptionsMenu>}<span className={`status s-${o.status}`}>{o.status}</span><div className="orderMain"><small>{o.code} ・ {o.category}</small><h3>{o.name}</h3>{showMemo && <p>{o.memo}</p>}</div><div className="orderMeta"><small>数量</small><strong>{o.qty}<i>{o.unit}</i></strong></div><div className="orderMeta"><small>発注者</small><b>{o.purchaser}</b><span>{o.orderedAt}</span></div>{o.status === "発注待ち" || o.status === "入荷待ち" ? <button className="next" onClick={() => onAdvance(o.orderId)}>{o.status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button> : <span className={`done ${o.status === "取消" ? "cancelled" : ""}`}>{o.status === "取消" ? "× 取消" : "✓ 入荷済み"}</span>}</article>)}</div></section>;
+function OrderList({ orders, onAdvance, onCancel, onReturn, onReturnToOrdered, showMemo, title }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; onReturn: (id: string) => void; onReturnToOrdered: (id: string) => void; showMemo: boolean; title: string }) {
+  return <section className="orderSection"><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>{title}</h2></div></div><div className="orderList">{orders.map((o) => <article className="orderRow" key={o.orderId}>{o.status !== "取消" && <OptionsMenu label={`${o.name}の操作`}>{o.status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(o.orderId)}>入荷待ちへ戻す</button>}{o.status === "入荷待ち" && <button className="menuNeutral" onClick={() => onReturnToOrdered(o.orderId)}>発注待ちに戻す</button>}<button onClick={() => onCancel(o.orderId)}>発注取消</button></OptionsMenu>}<span className={`status s-${o.status}`}>{o.status}</span><div className="orderMain"><small>{o.code} ・ {o.category}</small><h3>{o.name}</h3>{showMemo && <p>{o.memo}</p>}</div><div className="orderMeta"><small>数量</small><strong>{o.qty}<i>{o.unit}</i></strong></div><div className="orderMeta"><small>発注者</small><b>{o.purchaser}</b><span>{o.orderedAt}</span></div>{o.status === "発注待ち" || o.status === "入荷待ち" ? <button className="next" onClick={() => onAdvance(o.orderId)}>{o.status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button> : <span className={`done ${o.status === "取消" ? "cancelled" : ""}`}>{o.status === "取消" ? "× 取消" : "✓ 入荷済み"}</span>}</article>)}</div></section>;
 }
 
-function OrderBoard({ orders, onAdvance, onCancel, onReturn, onViewStatus, statusAlerts, showMemo }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; onReturn: (id: string) => void; onViewStatus: (status: "発注待ち" | "入荷待ち" | "入荷済み") => void; statusAlerts: Record<"発注待ち" | "入荷待ち" | "入荷済み", number>; showMemo: boolean }) {
+function OrderBoard({ orders, onAdvance, onCancel, onReturn, onReturnToOrdered, onViewStatus, statusAlerts, showMemo }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; onReturn: (id: string) => void; onReturnToOrdered: (id: string) => void; onViewStatus: (status: "発注待ち" | "入荷待ち" | "入荷済み") => void; statusAlerts: Record<"発注待ち" | "入荷待ち" | "入荷済み", number>; showMemo: boolean }) {
   const statuses: Exclude<Status, "取消">[] = ["発注待ち", "入荷待ち", "入荷済み"];
   return <section><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>発注・入荷状況</h2></div></div><div className="pipelineBoard">{statuses.map((status) => {
     const statusOrders = orders.filter((order) => order.status === status);
-    return <section className="pipelineColumn" key={status}><header onClick={() => onViewStatus(status)}><h3>{status}</h3>{statusAlerts[status] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<span>{statusOrders.length}</span></header><div>{statusOrders.map((order) => <article className="pipelineCard" key={order.orderId}><OptionsMenu label={`${order.name}の操作`}>{status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(order.orderId)}>入荷待ちへ戻す</button>}<button onClick={() => onCancel(order.orderId)}>発注取消</button></OptionsMenu><small>{order.code} ・ {order.category}</small><h4>{order.name}</h4>{showMemo && <p>{order.memo}</p>}<dl><div><dt>数量</dt><dd>{order.qty}{order.unit}</dd></div><div><dt>発注者</dt><dd>{order.purchaser}</dd></div></dl>{status !== "入荷済み" && <button className="next pipelineNext" onClick={() => onAdvance(order.orderId)}>{status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button>}</article>)}</div></section>;
+    return <section className="pipelineColumn" key={status}><header onClick={() => onViewStatus(status)}><h3>{status}</h3>{statusAlerts[status] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<span>{statusOrders.length}</span></header><div>{statusOrders.map((order) => <article className="pipelineCard" key={order.orderId}><OptionsMenu label={`${order.name}の操作`}>{status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(order.orderId)}>入荷待ちへ戻す</button>}{status === "入荷待ち" && <button className="menuNeutral" onClick={() => onReturnToOrdered(order.orderId)}>発注待ちに戻す</button>}<button onClick={() => onCancel(order.orderId)}>発注取消</button></OptionsMenu><small>{order.code} ・ {order.category}</small><h4>{order.name}</h4>{showMemo && <p>{order.memo}</p>}<dl><div><dt>数量</dt><dd>{order.qty}{order.unit}</dd></div><div><dt>発注者</dt><dd>{order.purchaser}</dd></div></dl>{status !== "入荷済み" && <button className="next pipelineNext" onClick={() => onAdvance(order.orderId)}>{status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button>}</article>)}</div></section>;
   })}</div></section>;
 }
 

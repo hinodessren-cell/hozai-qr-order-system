@@ -24,7 +24,7 @@ test("contains the material ordering workflow", async () => {
   assert.match(page, /カメラで撮影して読み取る/);
   assert.match(page, /\["scan", "カメラ", "◎"\]/);
   assert.match(page, /capture="environment"/);
-  assert.match(page, /scanNativeCameraImage/);
+  assert.match(page, /setScanOpen\(true\)/);
   assert.match(page, /ライブカメラを再試行/);
   assert.match(page, /iphoneScanner/);
   assert.match(page, /管理番号を手入力する/);
@@ -53,6 +53,7 @@ test("contains the material ordering workflow", async () => {
   assert.match(styles, /height:100dvh/);
   assert.match(page, /発注取消/);
   assert.match(page, /入荷待ちへ戻す/);
+  assert.match(page, /発注待ちに戻す/);
   assert.match(styles, /@media print[\s\S]*border:0!important/);
   assert.match(styles, /\.orderPointField/);
   assert.match(route, /payload\.action === "order"/);

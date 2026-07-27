@@ -34,5 +34,39 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
 @media print{.optionsMenu{display:none!important}}
 .orderPointField{color:#c7192d!important;font-weight:900!important;background:#fff0ef;border-left:3px solid #d61f2c;border-radius:3px;padding:3px 5px!important}.orderPointField input{color:#c7192d!important;font-weight:900!important}
 .boardTitleLine{display:flex;align-items:center;gap:6px;min-width:0}.boardTitleLine .inlineName{flex:1}.boardNumber{flex:none;color:#071a33!important;background:#eef1f5;border-radius:4px;padding:3px 5px;font-size:9px!important;letter-spacing:.03em;white-space:nowrap}
-@media print{.boards .board{border:0!important}.orderPointField{color:#b50018!important;background:transparent!important;border-left:0!important;padding:0!important}.orderPointField input{color:#b50018!important;font-weight:900!important}}
-.nativeCameraInput{position:fixed;left:-20px;top:0;width:1px;height:1px;opacity:.001;pointer-events:none}
+@media print{
+  @page{size:A4 portrait;margin:8mm}
+  html,body,.app,main{width:auto!important;min-width:0!important;overflow:visible!important}
+  .boards{
+    width:100%!important;
+    grid-template-columns:repeat(3,60mm)!important;
+    grid-auto-rows:40mm!important;
+    column-gap:2mm!important;
+    row-gap:2mm!important;
+    justify-content:center!important;
+    align-items:start!important
+  }
+  .boards .board{
+    box-sizing:border-box!important;
+    width:60mm!important;
+    height:40mm!important;
+    min-height:40mm!important;
+    padding:1.5mm!important;
+    gap:1.5mm!important;
+    border:0!important;
+    overflow:hidden!important;
+    break-inside:avoid-page;
+    page-break-inside:avoid
+  }
+  .boards .fakeQr{width:20mm!important;height:20mm!important;flex:0 0 20mm!important;padding:1mm!important;border-width:1mm!important}
+  .inlineBoardFields{min-width:0!important;overflow:hidden!important;gap:.3mm!important;line-height:1!important}
+  .inlineBoardFields input,.inlineBoardFields label{font-size:5.4pt!important;line-height:1.05!important}
+  .inlineBoardFields .inlineName{font-size:7pt!important;line-height:1.05!important}
+  .inlineBoardFields>b{display:block!important;font-size:4.8pt!important;line-height:1.05!important;overflow-wrap:anywhere!important}
+  .boardTitleLine{gap:.6mm!important}
+  .boardNumber{font-size:5.2pt!important;padding:.4mm .6mm!important}
+  .inlineMeta{grid-template-columns:minmax(0,1fr)!important;gap:0!important}
+  .inlineQty{width:7mm!important}.inlineUnit{width:6mm!important}
+  .orderPointField{color:#b50018!important;background:transparent!important;border-left:0!important;padding:0!important}
+  .orderPointField input{color:#b50018!important;font-weight:900!important}
+}
