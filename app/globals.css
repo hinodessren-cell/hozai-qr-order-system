@@ -33,7 +33,7 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
 @media (max-width:700px){.optionsMenu summary{width:44px;height:42px}.optionsMenu>div{top:47px;width:165px}.pipelineCard{padding-top:58px}.inlineItemCard{padding-top:60px}.inlineItemNumbers{grid-template-columns:1fr}.orderRow>.optionsMenu{top:10px}.orderRow>.next{margin-right:0}.orderRow{padding-top:58px}}
 @media print{.optionsMenu{display:none!important}}
 .orderPointField{color:#c7192d!important;font-weight:900!important;background:#fff0ef;border-left:3px solid #d61f2c;border-radius:3px;padding:3px 5px!important}.orderPointField input{color:#c7192d!important;font-weight:900!important}
-.boardTitleLine{display:flex;align-items:center;gap:6px;min-width:0}.boardTitleLine .inlineName{flex:1}.boardNumber{flex:none;color:#071a33!important;background:#eef1f5;border-radius:4px;padding:3px 5px;font-size:9px!important;letter-spacing:.03em;white-space:nowrap}
+.boardTitleLine{display:flex;align-items:center;gap:6px;min-width:0}.boardNameField{flex:1;min-width:0;display:grid!important;grid-template-columns:auto minmax(0,1fr);gap:4px}.boardNameField span{font-size:9px;font-weight:800;color:var(--accent)}.boardTitleLine .inlineName{flex:1}.boardNumber{flex:none;color:#071a33!important;background:#eef1f5;border-radius:4px;padding:3px 5px;font-size:9px!important;letter-spacing:.03em;white-space:nowrap}
 @media print{
   @page{size:A4 portrait;margin:8mm}
   html,body,.app,main{width:auto!important;min-width:0!important;overflow:visible!important}
@@ -62,6 +62,8 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
   .inlineBoardFields{min-width:0!important;overflow:hidden!important;gap:.3mm!important;line-height:1!important}
   .inlineBoardFields input,.inlineBoardFields label{font-size:5.4pt!important;line-height:1.05!important}
   .inlineBoardFields .inlineName{font-size:7pt!important;line-height:1.05!important}
+  .boardNameField{grid-template-columns:auto minmax(0,1fr)!important;gap:.5mm!important}
+  .boardNameField span{font-size:4.8pt!important;line-height:1!important}
   .inlineBoardFields>b{display:block!important;font-size:4.8pt!important;line-height:1.05!important;overflow-wrap:anywhere!important}
   .boardTitleLine{gap:.6mm!important}
   .boardNumber{font-size:5.2pt!important;padding:.4mm .6mm!important}
