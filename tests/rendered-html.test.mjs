@@ -36,7 +36,8 @@ test("contains the material ordering workflow", async () => {
   assert.match(page, /function InlineBoard/);
   assert.match(page, /padStart\(3, "0"\)/);
   assert.match(page, /localeCompare\(b\.category/);
-  assert.match(page, />品番<input/);
+  assert.match(page, /printBoardField/);
+  assert.match(page, /printQrBoards/);
   assert.match(page, /function OptionsMenu/);
   assert.match(page, /発注点/);
   assert.match(page, /setInterval/);

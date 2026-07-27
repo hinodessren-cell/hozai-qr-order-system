@@ -262,7 +262,7 @@ export default function Home() {
         {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
         {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="すべての履歴" />}
 
-        {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><button className="outline" onClick={() => window.print()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div><div className="integratedPrintBoards"><QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} /></div></section>}
+        {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><button className="outline" onClick={() => void printQrBoards()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{items.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.location}:${item.memo}`} item={item} showLocation={settings.showLocation} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div><div className="integratedPrintBoards"><QrBoards items={items} columns={settings.boardColumns} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} /></div></section>}
       </main>
 
       {scanOpen && <QrScanner items={items} close={() => setScanOpen(false)} found={(item) => { setScanOpen(false); setSelectedItem(item); }} />}
@@ -291,7 +291,7 @@ function OrderBoard({ orders, onAdvance, onCancel, onReturn, onReturnToOrdered, 
 function QrBoards({ items, columns, width, height, save }: { items: Item[]; columns: number; width: number; height: number; save: (item: Item) => Promise<void> }) {
   const boardStyle = { "--board-width": `${width}mm`, "--board-height": `${height}mm`, gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` } as React.CSSProperties;
   const sortedItems = [...items].sort((a, b) => a.category.localeCompare(b.category, "ja", { numeric: true, sensitivity: "base" }) || a.name.localeCompare(b.name, "ja", { numeric: true, sensitivity: "base" }));
-  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">カテゴリ・品名が近い順に表示します。No.は固定で、新規品目には末尾番号を自動採番します。印刷サイズ：{width}×{height}mm</span></div><button className="primary" onClick={() => window.print()}>印刷プレビュー</button></div><div className="boards" style={boardStyle}>{sortedItems.map((item) => <InlineBoard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.orderPoint}:${item.boardNumber}:${item.location}:${item.memo}`} item={item} save={save} />)}</div></section>;
+  return <section><div className="sectionTitle"><div><p className="eyebrow">QR KANBAN</p><h2>QR読み取り用看板</h2><span className="editHint">カテゴリ・品名が近い順に表示します。No.は固定で、新規品目には末尾番号を自動採番します。印刷サイズ：{width}×{height}mm</span></div><button className="primary" onClick={() => void printQrBoards()}>印刷プレビュー</button></div><div className="boards" style={boardStyle}>{sortedItems.map((item) => <InlineBoard key={`${item.id}:${item.code}:${item.name}:${item.qty}:${item.orderPoint}:${item.boardNumber}:${item.location}:${item.memo}`} item={item} save={save} />)}</div></section>;
 }
 
 function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise<void> }) {
@@ -302,12 +302,11 @@ function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise
   };
   const keyDown = (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") event.currentTarget.blur(); };
   return <article className="board"><FakeQr value={item.id}/><div className="inlineBoardFields">
+    <label className="printBoardField"><span>カテゴリ</span><input className="inlineCategory" aria-label="カテゴリ" value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
+    <label className="printBoardField"><span>品番</span><input className="inlineCode" aria-label="品番" value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
     <div className="boardTitleLine"><label className="boardNameField"><span>品名</span><input className="inlineName" aria-label="品名" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><strong className="boardNumber">No.{String(item.boardNumber).padStart(3, "0")}</strong></div>
-    <input className="inlineCategory" aria-label="カテゴリ" value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>
-    <label>品番<input aria-label="品番" value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
-    <input aria-label="備考" value={draft.memo} onChange={(event) => setDraft({ ...draft, memo: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>
-    <div className="inlineMeta"><label>⌖ <input aria-label="保管場所" value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label>発注数量 <input className="inlineQty" aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/><input className="inlineUnit" aria-label="単位" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label className="orderPointField">発注点 <input className="inlineQty" aria-label="発注点" type="number" min="0" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: Math.max(0, Number(event.target.value) || 0) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{draft.unit}</label></div>
-    <b>在庫が少なくなりましたら発注してください。</b>
+    <label className="printBoardField printBoardMemo"><span>備考</span><input aria-label="備考" value={draft.memo} onChange={(event) => setDraft({ ...draft, memo: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
+    <div className="inlineMeta"><label className="boardLocationField">保管場所<input aria-label="保管場所" value={draft.location} onChange={(event) => setDraft({ ...draft, location: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label>発注数量 <input className="inlineQty" aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/><input className="inlineUnit" aria-label="単位" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label className="orderPointField">発注点 <input className="inlineQty" aria-label="発注点" type="number" min="0" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: Math.max(0, Number(event.target.value) || 0) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{draft.unit}</label></div>
   </div></article>;
 }
 
@@ -337,12 +336,14 @@ function OptionsMenu({ label, children }: { label: string; children: React.React
 
 function FakeQr({ value }: { value: string }) {
   const [source, setSource] = useState(`/qr/${encodeURIComponent(value)}.svg`);
-  const generate = async () => {
+  useEffect(() => {
+    let active = true;
     const url = `${window.location.origin}/?item=${encodeURIComponent(value)}`;
-    setSource(await QRCode.toDataURL(url, { errorCorrectionLevel: "M", margin: 1, width: 320 }));
-  };
+    void QRCode.toDataURL(url, { errorCorrectionLevel: "M", margin: 1, width: 320 }).then((generated) => { if (active) setSource(generated); });
+    return () => { active = false; };
+  }, [value]);
   // eslint-disable-next-line @next/next/no-img-element
-  return <img className="fakeQr" src={source} onError={() => void generate()} alt={`品目 ${value} の発注用QRコード`} />;
+  return <img className="fakeQr" src={source} alt={`品目 ${value} の発注用QRコード`} />;
 }
 
 function QrScanner({ items, close, found }: { items: Item[]; close: () => void; found: (item: Item) => void }) {
@@ -453,6 +454,17 @@ async function postState(payload: Record<string, unknown>) {
 function showRequestError(error: unknown) {
   if (error instanceof Error && error.message === "ログイン画面へ移動します。") return;
   window.alert(error instanceof Error ? error.message : "操作を完了できませんでした。");
+}
+
+async function printQrBoards() {
+  const deadline = Date.now() + 3000;
+  while (Date.now() < deadline) {
+    const images = Array.from(document.querySelectorAll<HTMLImageElement>(".integratedPrintBoards .fakeQr"));
+    if (images.length > 0 && images.every((image) => image.src.startsWith("data:image/") && image.complete && image.naturalWidth > 0)) break;
+    await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+  }
+  await document.fonts?.ready;
+  window.print();
 }
 
 function urlBase64ToArrayBuffer(value: string) {
