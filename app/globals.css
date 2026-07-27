@@ -34,6 +34,7 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
 @media print{.optionsMenu{display:none!important}}
 .orderPointField{color:#c7192d!important;font-weight:900!important;background:#fff0ef;border-left:3px solid #d61f2c;border-radius:3px;padding:3px 5px!important}.orderPointField input{color:#c7192d!important;font-weight:900!important}
 .boardTitleLine{display:flex;align-items:center;gap:6px;min-width:0}.boardNameField{flex:1;min-width:0;display:grid!important;grid-template-columns:auto minmax(0,1fr);gap:4px}.boardNameField span{font-size:9px;font-weight:800;color:var(--accent)}.boardTitleLine .inlineName{flex:1}.boardNumber{flex:none;color:#071a33!important;background:#eef1f5;border-radius:4px;padding:3px 5px;font-size:9px!important;letter-spacing:.03em;white-space:nowrap}
+.boards .board{height:auto;min-height:230px;overflow:visible;align-items:flex-start;padding:22px 18px;border:1px solid #d9dbe0;border-radius:9px;box-shadow:0 8px 24px #071a330d}.boards .board .fakeQr{margin-top:38px}.inlineBoardFields{gap:7px}.inlineCategory{color:var(--accent)!important;font-size:11px!important;font-weight:800!important}.boardNameField .inlineName{font:20px Georgia,"Yu Mincho",serif!important}.inlineMeta{margin-top:6px;padding-top:9px;border-top:1px solid var(--line)}.inlineMeta .orderPointField{background:#fff0f1;padding:5px 7px;border-left:3px solid var(--accent);color:var(--accent)}
 @media print{
   @page{size:A4 portrait;margin:8mm}
   html,body,.app,main{width:auto!important;min-width:0!important;overflow:visible!important}
@@ -54,14 +55,18 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
     padding:1.5mm!important;
     gap:1.5mm!important;
     border:0!important;
+    border-radius:0!important;
+    box-shadow:none!important;
     overflow:hidden!important;
     break-inside:avoid-page;
     page-break-inside:avoid
   }
   .boards .fakeQr{width:20mm!important;height:20mm!important;flex:0 0 20mm!important;padding:1mm!important;border-width:1mm!important}
+  .boards .board .fakeQr{margin-top:0!important}
   .inlineBoardFields{min-width:0!important;overflow:hidden!important;gap:.3mm!important;line-height:1!important}
   .inlineBoardFields input,.inlineBoardFields label{font-size:5.4pt!important;line-height:1.05!important}
   .inlineBoardFields .inlineName{font-size:7pt!important;line-height:1.05!important}
+  .inlineCategory{font-size:4.8pt!important;line-height:1!important}
   .boardNameField{grid-template-columns:auto minmax(0,1fr)!important;gap:.5mm!important}
   .boardNameField span{font-size:4.8pt!important;line-height:1!important}
   .inlineBoardFields>b{display:block!important;font-size:4.8pt!important;line-height:1.05!important;overflow-wrap:anywhere!important}
