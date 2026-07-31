@@ -147,6 +147,8 @@ button:disabled{cursor:wait;opacity:.68}
 .inlineItemNumbers .numberWithUnit{display:inline-flex;align-items:center;justify-content:flex-end;gap:2px;margin-left:auto;white-space:nowrap}
 .inlineItemNumbers .numberWithUnit input[type=number]{width:42px!important;margin:0!important;padding-inline:3px!important;text-align:right}
 .inlineItemNumbers .numberWithUnit .inlineItemUnit{width:48px!important;margin:0!important;padding-inline:2px!important;text-align:left}
+.inlineItemNumbers .numberWithUnit .orderPointTextInput{width:112px!important;margin:0!important;padding-inline:3px!important;text-align:left}
+.inlineMeta .orderPointTextInput{width:112px!important}
 .inlineItemNumbers .fixedUnit{color:inherit;font-size:inherit;font-weight:900}
 .ipadFullscreen .sidebar,.ipadFullscreen main>header{display:none!important}
 .ipadFullscreen main{margin:0!important;max-width:none!important;width:100%!important;min-height:100dvh;padding:18px 20px 28px!important}
