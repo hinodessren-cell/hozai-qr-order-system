@@ -7,7 +7,7 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-const APP_VERSION = "7.6";
+const APP_VERSION = "7.7";
 
 export default function PwaRegister() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
@@ -56,16 +56,29 @@ export default function PwaRegister() {
     }
 
     let active = true;
+    let suppressRepeat = window.sessionStorage.getItem("pwa-update-reload-once") === APP_VERSION
+      || Boolean(navigator.serviceWorker.controller?.scriptURL.includes("?v="));
+    window.sessionStorage.removeItem("pwa-update-reload-once");
+    const suppressTimer = window.setTimeout(() => { suppressRepeat = false; }, 15_000);
+    const announceUpdate = (worker: ServiceWorker | null) => {
+      if (applyingUpdate.current) return;
+      if (suppressRepeat && worker) {
+        applyingUpdate.current = true;
+        worker.postMessage({ type: "SKIP_WAITING" });
+        return;
+      }
+      setUpdateAvailable(true);
+    };
     const observe = (current: ServiceWorkerRegistration) => {
-      if (current.waiting && !applyingUpdate.current) setUpdateAvailable(true);
+      if (current.waiting) announceUpdate(current.waiting);
       current.addEventListener("updatefound", () => {
         const worker = current.installing;
         worker?.addEventListener("statechange", () => {
-          if (worker.state === "installed" && navigator.serviceWorker.controller && !applyingUpdate.current) setUpdateAvailable(true);
+          if (worker.state === "installed" && navigator.serviceWorker.controller) announceUpdate(worker);
         });
       });
     };
-    void navigator.serviceWorker.register(`/sw.js?v=${APP_VERSION}`, { updateViaCache: "none" }).then((current) => {
+    void navigator.serviceWorker.register("/sw.js", { updateViaCache: "none" }).then((current) => {
       if (!active) return;
       setRegistration(current);
       observe(current);
@@ -85,6 +98,7 @@ export default function PwaRegister() {
     return () => {
       active = false;
       window.clearTimeout(initializeTimer);
+      window.clearTimeout(suppressTimer);
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
@@ -115,6 +129,7 @@ export default function PwaRegister() {
     if (applyingUpdate.current) return;
     applyingUpdate.current = true;
     setUpdateAvailable(false);
+    window.sessionStorage.setItem("pwa-update-reload-once", APP_VERSION);
     const current = registration ?? await navigator.serviceWorker.getRegistration();
     const waiting = current?.waiting;
     if (waiting) {
