@@ -7,6 +7,8 @@ import QRCode from "qrcode";
 type Status = "発注待ち" | "入荷待ち" | "入荷済み" | "取消";
 type Item = { id: string; code: string; name: string; category: string; unit: string; qty: number; orderPoint: number; boardNumber: number; location: string; memo: string };
 type Order = Item & { orderId: string; status: Status; orderedAt: string; purchaser: string; orderNote: string };
+type AccessAccount = { email: string; name: string; status: "pending" | "approved" | "rejected"; requestedAt: string; updatedAt: string; lastSeenAt: string };
+type AccessState = { status: "loading" | "signed_out" | "pending" | "approved" | "rejected"; isOwner: boolean; user?: { email: string; name: string }; accounts: AccessAccount[] };
 
 const initialItems: Item[] = [
   { id: "HZ-2CE1D46BD51220", code: "712-30", name: "カッターマット", category: "ホットマーカ", unit: "set", qty: 5, orderPoint: 1, boardNumber: 1, location: "工具棚 A-2", memo: "1set / 5組10個入" },
@@ -46,12 +48,28 @@ export default function Home() {
   const [pushStatus, setPushStatus] = useState("親機通知");
   const [unreadOrders, setUnreadOrders] = useState(0);
   const [statusAlerts, setStatusAlerts] = useState<Record<"発注待ち" | "入荷待ち" | "入荷済み", number>>({ "発注待ち": 0, "入荷待ち": 0, "入荷済み": 0 });
+  const [access, setAccess] = useState<AccessState>({ status: "loading", isOwner: false, accounts: [] });
   const notificationEnabled = useRef(false);
   const seenOrderIds = useRef<Set<string> | null>(null);
   const acknowledgedOrderIds = useRef<Set<string>>(new Set());
   const acknowledgedStatusEvents = useRef<Set<string>>(new Set());
 
+  const refreshAccess = useCallback(async () => {
+    const response = await fetch("/api/access", { cache: "no-store" });
+    if (response.status === 401) {
+      const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+      window.location.assign(`/signin-with-chatgpt?return_to=${encodeURIComponent(returnTo)}`);
+      return;
+    }
+    const data = await response.json() as Omit<AccessState, "status"> & { status: AccessState["status"] };
+    setAccess({ status: data.status, isOwner: data.isOwner, user: data.user, accounts: data.accounts ?? [] });
+  }, []);
+
+  useEffect(() => { void refreshAccess(); }, [refreshAccess]);
+  useEffect(() => { if (settingsOpen && access.isOwner) void refreshAccess(); }, [settingsOpen, access.isOwner, refreshAccess]);
+
   useEffect(() => {
+    if (access.status !== "approved") return;
     setIpadDevice(isIPad());
     let active = true;
     const refresh = async (initial = false) => {
@@ -119,7 +137,7 @@ export default function Home() {
     document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("focus", onVisible);
     return () => { active = false; window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); window.removeEventListener("focus", onVisible); };
-  }, []);
+  }, [access.status]);
 
   useEffect(() => {
     if (ipadDevice && settings.ipadFullscreen) setTab("orders");
@@ -276,10 +294,21 @@ export default function Home() {
     setPrintRequested(false);
   }
 
+  async function updateAccountAccess(email: string, action: "approve" | "reject" | "revoke") {
+    const response = await fetch("/api/access", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email, action }) });
+    if (!response.ok) {
+      const data = await response.json().catch(() => null) as { error?: string } | null;
+      throw new Error(data?.error ?? "アクセス設定を変更できませんでした。");
+    }
+    await refreshAccess();
+  }
+
   const nav = [
     ["dashboard", "概要", "▦"], ["scan", "カメラ", "◎"], ["orders", "発注管理", "⇄"],
     ["history", "履歴", "◷"], ["items", "品目・看板", "▤"],
   ];
+
+  if (access.status !== "approved") return <AccessGate access={access} refresh={refreshAccess} />;
 
   return (
     <div className={`app density-${settings.density}${ipadDevice && settings.ipadFullscreen ? " ipadFullscreen" : ""}`} style={{ "--accent": settings.accent } as React.CSSProperties}>
@@ -316,7 +345,7 @@ export default function Home() {
 
       {editingItem && <ItemEditor item={editingItem === "new" ? null : editingItem} close={() => setEditingItem(null)} save={saveItem} />}
 
-      {settingsOpen && <SettingsPanel settings={settings} setSettings={setSettings} pushStatus={pushStatus} enableNotifications={enableParentNotifications} close={() => setSettingsOpen(false)} save={async () => { await persistSettings(settings); setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); setSettingsOpen(false); }} />}
+      {settingsOpen && <SettingsPanel settings={settings} setSettings={setSettings} pushStatus={pushStatus} enableNotifications={enableParentNotifications} access={access} updateAccountAccess={updateAccountAccess} close={() => setSettingsOpen(false)} save={async () => { await persistSettings(settings); setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); setSettingsOpen(false); }} />}
     </div>
   );
 }
@@ -503,7 +532,24 @@ function ItemEditor({ item, close, save }: { item: Item | null; close: () => voi
   return <div className="modalBackdrop" onClick={close}><section className="orderModal itemEditor" onClick={(event) => event.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">MASTER ITEM</p><h2>{isNew ? "新規品目登録" : "品目を編集"}</h2><label>品番（必須）<input autoFocus value={draft.code} onChange={(event) => update("code", event.target.value)} /></label><label>品名（必須）<input value={draft.name} onChange={(event) => update("name", event.target.value)} /></label><div className="editorTwo"><label>カテゴリ<input value={draft.category} onChange={(event) => update("category", event.target.value)} /></label><label>保管場所<input value={draft.location} onChange={(event) => update("location", event.target.value)} /></label></div><div className="editorTwo"><label>発注数量<input type="number" min="1" max="10000" value={draft.qty} onChange={(event) => update("qty", Math.max(1, Number(event.target.value) || 1))} /></label><label>発注点<input type="number" min="0" max="10000" value={draft.orderPoint} onChange={(event) => update("orderPoint", Math.max(0, Number(event.target.value) || 0))} /></label></div><label>単位<input value={draft.unit} onChange={(event) => update("unit", event.target.value)} /></label><label>備考<textarea value={draft.memo} onChange={(event) => update("memo", event.target.value)} /></label><button className="primary wide" disabled={saving || !draft.code.trim() || !draft.name.trim()} onClick={() => void submit()}>{saving ? "保存中…" : isNew ? "この品目を登録" : "変更を保存"}</button></section></div>;
 }
 
-function SettingsPanel({ settings, setSettings, pushStatus, enableNotifications, close, save }: { settings: typeof defaultSettings; setSettings: React.Dispatch<React.SetStateAction<typeof defaultSettings>>; pushStatus: string; enableNotifications: () => Promise<void>; close: () => void; save: () => Promise<void> }) {
+function AccessGate({ access, refresh }: { access: AccessState; refresh: () => Promise<void> }) {
+  const requestAgain = async () => {
+    await fetch("/api/access", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "request" }) });
+    await refresh();
+  };
+  return <main className="accessGate"><section>
+    <div className="brand accessBrand"><span className="brandLogo"/><div className="brandControl"><span>MATERIAL ORDER CONTROL</span><strong>日の出製作所</strong></div></div>
+    <p className="eyebrow">ACCOUNT ACCESS</p>
+    <h1>{access.status === "rejected" ? "アクセスは許可されていません" : access.status === "loading" ? "本人確認中…" : "アクセス承認待ち"}</h1>
+    {access.user && <p className="accessIdentity">{access.user.name}<small>{access.user.email}</small></p>}
+    {access.status === "pending" && <p>管理者がアクセスを許可すると、この画面から発注システムを利用できるようになります。</p>}
+    {access.status === "rejected" && <button className="primary wide" onClick={() => void requestAgain()}>もう一度アクセスを申請</button>}
+    {access.status === "pending" && <button className="outline wide" onClick={() => void refresh()}>承認状況を確認</button>}
+    {access.status === "signed_out" && <a className="primary accessSignIn" href="/signin-with-chatgpt?return_to=%2F">ChatGPTで本人確認</a>}
+  </section></main>;
+}
+
+function SettingsPanel({ settings, setSettings, pushStatus, enableNotifications, access, updateAccountAccess, close, save }: { settings: typeof defaultSettings; setSettings: React.Dispatch<React.SetStateAction<typeof defaultSettings>>; pushStatus: string; enableNotifications: () => Promise<void>; access: AccessState; updateAccountAccess: (email: string, action: "approve" | "reject" | "revoke") => Promise<void>; close: () => void; save: () => Promise<void> }) {
   const [saving, setSaving] = useState(false);
   const update = (key: keyof typeof defaultSettings, value: string | number | boolean) => setSettings((s) => ({ ...s, [key]: value }));
   return <div className="drawerBackdrop" onClick={close}><aside className="settingsDrawer" onClick={(e) => e.stopPropagation()}><div className="drawerHead"><div><p className="eyebrow">CUSTOMIZE</p><h2>詳細設定</h2></div><button className="close" onClick={close}>×</button></div>
@@ -511,6 +557,7 @@ function SettingsPanel({ settings, setSettings, pushStatus, enableNotifications,
     <fieldset><legend>発注フロー</legend><label>発注待ちの表示名<input value={settings.orderLabel} onChange={(e) => update("orderLabel", e.target.value)} /></label><label>入荷待ちの表示名<input value={settings.arrivalLabel} onChange={(e) => update("arrivalLabel", e.target.value)} /></label><label>完了の表示名<input value={settings.doneLabel} onChange={(e) => update("doneLabel", e.target.value)} /></label><label>初期発注数量<input type="number" min="1" value={settings.defaultQty} onChange={(e) => update("defaultQty", Number(e.target.value))}/></label><Check label="新規発注を通知" value={settings.notifyNew} change={(v) => update("notifyNew", v)}/><Check label="入荷を通知" value={settings.notifyArrival} change={(v) => update("notifyArrival", v)}/></fieldset>
     <fieldset><legend>QR看板・印刷</legend><label>列数<input type="number" min="1" max="4" value={settings.boardColumns} onChange={(e) => update("boardColumns", Number(e.target.value))}/></label><label>行数<input type="number" min="1" max="8" value={settings.boardRows} onChange={(e) => update("boardRows", Number(e.target.value))}/></label><div className="two"><label>幅 mm<input type="number" value={settings.boardWidth} onChange={(e) => update("boardWidth", Number(e.target.value))}/></label><label>高さ mm<input type="number" value={settings.boardHeight} onChange={(e) => update("boardHeight", Number(e.target.value))}/></label></div></fieldset>
     <fieldset><legend>親機通知</legend><button className="outline wide" type="button" onClick={() => void enableNotifications()}>● {pushStatus}</button></fieldset>
+    {access.isOwner && <fieldset className="accountSettings"><legend>アカウント</legend><p>アクセス申請</p>{access.accounts.filter((account) => account.status === "pending").length === 0 ? <small>現在、承認待ちの申請はありません。</small> : access.accounts.filter((account) => account.status === "pending").map((account) => <article key={account.email}><div><b>{account.name || account.email}</b><small>{account.email}</small><small>申請：{formatOrderDate(account.requestedAt)}</small></div><div><button className="outline" onClick={() => void updateAccountAccess(account.email, "reject").catch(showRequestError)}>拒否</button><button className="primary" onClick={() => void updateAccountAccess(account.email, "approve").catch(showRequestError)}>許可</button></div></article>)}<p>アクセス許可済み</p>{access.accounts.filter((account) => account.status === "approved").map((account) => <article key={account.email}><div><b>{account.name || account.email}</b><small>{account.email}</small><small>最終アクセス：{formatOrderDate(account.lastSeenAt)}</small></div>{account.email !== "renbou12040@gmail.com" && <button className="outline" onClick={() => void updateAccountAccess(account.email, "revoke").catch(showRequestError)}>許可を解除</button>}</article>)}</fieldset>}
     <div className="drawerActions"><button className="outline" onClick={() => setSettings(defaultSettings)}>初期値に戻す</button><button className="primary saveSettingsButton" disabled={saving} onClick={async () => { setSaving(true); try { await save(); } catch (error) { showRequestError(error); setSaving(false); } }}>{saving ? "保存中…" : "設定を保存"}</button></div>
   </aside></div>;
 }

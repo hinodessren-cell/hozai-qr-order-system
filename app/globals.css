@@ -101,6 +101,15 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
   .inlineMeta input{font-size:7.5pt!important;font-weight:800!important}
   .inlineQty{width:8mm!important}.inlineUnit{width:7mm!important}
 }
+.accessGate{margin:0!important;max-width:none!important;min-height:100dvh;padding:24px!important;display:grid;place-items:center;background:#f7f5f0}
+.accessGate>section{width:min(460px,100%);background:#fff;border:1px solid var(--line);padding:30px;box-shadow:var(--shadow)}
+.accessGate .accessBrand{margin:-30px -30px 28px;padding:20px 30px;border-bottom:1px solid var(--line)}
+.accessIdentity{display:grid;gap:4px;margin:20px 0;padding:14px;background:#f5f6f8;font-weight:900}.accessIdentity small{color:var(--muted);font-weight:500}
+.accessSignIn{display:grid;place-items:center;min-height:50px;margin-top:18px;text-decoration:none}
+.accountSettings>p{margin:4px 0 8px;font-weight:900}.accountSettings>small{color:var(--muted)}
+.accountSettings article{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-top:1px solid var(--line)}
+.accountSettings article>div:first-child{display:grid;gap:3px;min-width:0}.accountSettings article small{color:var(--muted);font-size:10px;overflow-wrap:anywhere}
+.accountSettings article>div:last-child{display:flex;gap:6px}.accountSettings article button{min-height:38px;padding:7px 11px;white-space:nowrap}
 @media(max-width:700px){.sidebar nav{grid-template-columns:repeat(5,1fr)}.sectionTitleActions{width:100%;display:grid;grid-template-columns:1fr 1fr}.stickyItemActions{top:78px;margin-inline:-12px;padding-inline:12px}.sectionTitleActions button{min-height:44px}.itemCardQr{right:14px;top:62px}}
 @media (min-width:701px) and (max-width:1180px){
   .pipelineBoard{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:8px!important}

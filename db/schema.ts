@@ -20,3 +20,11 @@ export const pushSubscriptions = sqliteTable("push_subscriptions", {
   auth: text("auth").notNull(),
   createdAt: text("created_at").notNull(),
 });
+export const accessAccounts = sqliteTable("access_accounts", {
+  email: text("email").primaryKey(),
+  name: text("name").notNull().default(""),
+  status: text("status").notNull().default("pending"),
+  requestedAt: text("requested_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  lastSeenAt: text("last_seen_at").notNull(),
+});
