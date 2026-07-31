@@ -1,4 +1,4 @@
-const CACHE_NAME = "hozai-qr-order-v6";
+const CACHE_NAME = "hozai-qr-order-v7";
 const APP_ASSETS = [
   "/offline.html",
   "/manifest.webmanifest",

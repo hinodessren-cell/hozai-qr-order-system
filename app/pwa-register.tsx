@@ -7,7 +7,7 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-const APP_VERSION = "6.0";
+const APP_VERSION = "7.0";
 
 export default function PwaRegister() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
@@ -64,7 +64,7 @@ export default function PwaRegister() {
         });
       });
     };
-    void navigator.serviceWorker.register("/sw.js?v=6", { updateViaCache: "none" }).then((current) => {
+    void navigator.serviceWorker.register(`/sw.js?v=${APP_VERSION}`, { updateViaCache: "none" }).then((current) => {
       if (!active) return;
       setRegistration(current);
       observe(current);
@@ -118,7 +118,7 @@ export default function PwaRegister() {
 
   return <>
     {!online && <aside className="pwaOffline" role="status">オフラインです。通信が戻ると自動的に再接続します。</aside>}
-    {updateAvailable && <aside className="pwaUpdate" role="status"><div><b>新しいバージョンがあります</b><small>発注内容を保存してから更新してください。</small></div><button onClick={applyUpdate}>今すぐ更新</button></aside>}
+    {updateAvailable && <aside className="pwaUpdate" role="status"><div><b>新しいバージョンがあります</b><small>発注内容を保存してから更新してください。</small></div><button onClick={applyUpdate}>最新版に更新</button></aside>}
     {!standalone && showInstall && <aside className="pwaInstall">
       <button className="pwaDismiss" onClick={dismissInstall} aria-label="インストール案内を閉じる">×</button>
       <div><b>アプリとして使えます</b><small>ホーム画面からすぐに起動できます。</small></div>
