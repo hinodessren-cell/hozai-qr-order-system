@@ -259,8 +259,8 @@ button:disabled{cursor:wait;opacity:.68}
   .printItemCards .inlineItemCard input{padding:.2mm .5mm!important;margin-left:-.5mm!important}
   .printItemCards .printItemValue{display:-webkit-box!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;overflow-wrap:anywhere!important;word-break:break-word!important;line-height:1.05!important;-webkit-box-orient:vertical!important;-webkit-line-clamp:1!important}
   .printItemCards .inlineItemCategory{font-size:7.2pt!important}
-  .printItemCards .inlineItemCode{display:block!important;overflow:visible!important;font-size:var(--print-code-size)!important;line-height:1!important;-webkit-line-clamp:unset!important;white-space:normal!important}
-  .printItemCards .inlineItemName{display:block!important;overflow:visible!important;font-size:var(--print-name-size)!important;line-height:1.05!important;-webkit-line-clamp:unset!important;max-height:none!important;white-space:normal!important}
+  .printItemCards .inlineItemCode{display:block!important;overflow:visible!important;font-size:var(--print-code-size)!important;font-weight:900!important;line-height:1!important;-webkit-line-clamp:unset!important;white-space:normal!important}
+  .printItemCards .inlineItemName{display:block!important;overflow:visible!important;font-size:var(--print-name-size)!important;font-weight:900!important;line-height:1.05!important;-webkit-line-clamp:unset!important;max-height:none!important;white-space:normal!important}
   .printItemCards .inlineItemMemoField{grid-template-columns:9mm minmax(0,1fr)!important;gap:.7mm!important;margin-right:21mm!important;font-size:6.8pt!important;min-height:0!important}
   .printItemCards .inlineItemMemo{font-size:6.8pt!important}
   .printItemCards .itemCardQr{right:1.5mm!important;top:6mm!important}
