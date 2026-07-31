@@ -29,6 +29,7 @@ const defaultSettings = {
   orderLabel: "発注待ち", arrivalLabel: "入荷待ち", doneLabel: "入荷済み",
   notifyNew: true, notifyArrival: true, siteName: "日の出製作所", ipadFullscreen: false,
 };
+const generatedQrCache = new Map<string, string>();
 
 export default function Home() {
   const [tab, setTab] = useState("dashboard");
@@ -308,10 +309,7 @@ export default function Home() {
       return;
     }
     setPrintItems(targetItems);
-    const qrEntries = await Promise.all(targetItems.map(async (item) => [
-      item.id,
-      await QRCode.toDataURL(`${window.location.origin}/?item=${encodeURIComponent(item.id)}`, { errorCorrectionLevel: "M", margin: 1, width: 320 }),
-    ] as const));
+    const qrEntries = targetItems.map((item) => [item.id, `/qr/${encodeURIComponent(item.id)}.svg`] as const);
     setPrintQrSources(Object.fromEntries(qrEntries));
     setPrintRequested(true);
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())));
@@ -403,7 +401,7 @@ function PrintItemCard({ item, qrSource }: { item: Item; qrSource: string }) {
   const nameSize = printTextSize(item.name, 8.2, 6.8, 5.6);
   return <article className="itemCard inlineItemCard" style={{ "--print-code-size": `${codeSize}pt`, "--print-name-size": `${nameSize}pt` } as React.CSSProperties}>
     <div className="inlineItemField"><span>カテゴリ</span><span className="printItemValue inlineItemCategory">{item.category}</span></div>
-    <div className="itemCardQr"><img className="fakeQr" src={qrSource} alt=""/></div>
+    <div className="itemCardQr"><img className="fakeQr" src={qrSource} onError={(event) => void useGeneratedQr(event.currentTarget, item.id)} alt=""/></div>
     <div className="inlineItemField"><span>品番</span><span className="printItemValue inlineItemCode">{item.code}</span></div>
     <div className="inlineItemField"><span>品名</span><span className="printItemValue inlineItemName">{item.name}</span></div>
     <div className="inlineItemMemoField"><span>保管場所</span><span className="printItemValue inlineItemMemo">{item.location}</span></div>
@@ -469,14 +467,22 @@ function OptionsMenu({ label, children }: { label: string; children: React.React
 
 function FakeQr({ value }: { value: string }) {
   const [source, setSource] = useState(`/qr/${encodeURIComponent(value)}.svg`);
-  useEffect(() => {
-    let active = true;
-    const url = `${window.location.origin}/?item=${encodeURIComponent(value)}`;
-    void QRCode.toDataURL(url, { errorCorrectionLevel: "M", margin: 1, width: 320 }).then((generated) => { if (active) setSource(generated); });
-    return () => { active = false; };
-  }, [value]);
   // eslint-disable-next-line @next/next/no-img-element
-  return <img className="fakeQr" src={source} alt={`品目 ${value} の発注用QRコード`} />;
+  return <img className="fakeQr" src={source} loading="lazy" onError={() => void generatedQrSource(value).then(setSource)} alt={`品目 ${value} の発注用QRコード`} />;
+}
+
+async function generatedQrSource(itemId: string) {
+  const cached = generatedQrCache.get(itemId);
+  if (cached) return cached;
+  const stableValue = `${window.location.origin}/?item=${encodeURIComponent(itemId)}`;
+  const generated = await QRCode.toDataURL(stableValue, { errorCorrectionLevel: "M", margin: 1, width: 320 });
+  generatedQrCache.set(itemId, generated);
+  return generated;
+}
+
+async function useGeneratedQr(image: HTMLImageElement, itemId: string) {
+  image.onerror = null;
+  image.src = await generatedQrSource(itemId);
 }
 
 function QrScanner({ items, close, found }: { items: Item[]; close: () => void; found: (item: Item) => void }) {

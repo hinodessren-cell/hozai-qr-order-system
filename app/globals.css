@@ -138,6 +138,7 @@ button:disabled{cursor:wait;opacity:.68}
 @media(max-width:700px){.settingsToast{bottom:98px;white-space:nowrap}}
 @media(max-width:700px){.orderNotification{bottom:94px;align-items:stretch}.orderNotification button{min-width:72px}}
 .inlineItemNumbers label{justify-content:space-between}
+.itemGrid .inlineItemCard{content-visibility:auto;contain-intrinsic-size:240px}
 .inlineItemNumbers .numberLabel{color:#071a33;font-size:inherit;font-weight:900;white-space:nowrap}
 .inlineItemNumbers .numberWithUnit{display:inline-flex;align-items:center;justify-content:flex-end;gap:2px;margin-left:auto;white-space:nowrap}
 .inlineItemNumbers .numberWithUnit input[type=number]{width:42px!important;margin:0!important;padding-inline:3px!important;text-align:right}
@@ -250,7 +251,9 @@ button:disabled{cursor:wait;opacity:.68}
     border-radius:0!important;
     outline:0!important;
     gap:.25mm!important;
-    line-height:1.05!important
+    line-height:1.05!important;
+    content-visibility:visible!important;
+    contain:none!important
   }
   .printItemCards .inlineItemField{grid-template-columns:9mm minmax(0,1fr)!important;gap:.7mm!important;margin-right:21mm!important;font-size:7.2pt!important;min-height:0!important}
   .printItemCards .inlineItemCard input{padding:.2mm .5mm!important;margin-left:-.5mm!important}
