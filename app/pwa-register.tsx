@@ -7,7 +7,7 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-const APP_VERSION = "7.7";
+const APP_VERSION = "7.8";
 
 export default function PwaRegister() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
@@ -56,12 +56,13 @@ export default function PwaRegister() {
     }
 
     let active = true;
-    let suppressRepeat = window.sessionStorage.getItem("pwa-update-reload-once") === APP_VERSION
-      || Boolean(navigator.serviceWorker.controller?.scriptURL.includes("?v="));
+    const phoneCameraUse = /iPhone|Android.*Mobile/i.test(navigator.userAgent);
+    let suppressRepeat = true;
     window.sessionStorage.removeItem("pwa-update-reload-once");
     const suppressTimer = window.setTimeout(() => { suppressRepeat = false; }, 15_000);
     const announceUpdate = (worker: ServiceWorker | null) => {
       if (applyingUpdate.current) return;
+      if (phoneCameraUse) return;
       if (suppressRepeat && worker) {
         applyingUpdate.current = true;
         worker.postMessage({ type: "SKIP_WAITING" });
