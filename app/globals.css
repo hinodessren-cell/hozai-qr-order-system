@@ -101,6 +101,10 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
   .inlineMeta input{font-size:7.5pt!important;font-weight:800!important}
   .inlineQty{width:8mm!important}.inlineUnit{width:7mm!important}
 }
+.orderEditableName input{font:700 22px Georgia,"Yu Mincho",serif!important}
+.orderEditableCode{position:relative;border-bottom:1px solid var(--line);padding-bottom:15px}
+.orderEditableCode input{padding-right:105px!important;font:20px Georgia,serif!important}
+.orderEditableCode>span{position:absolute;right:8px;bottom:24px;font:11px sans-serif;background:#e6efeb;padding:6px 9px}
 .accessGate{margin:0!important;max-width:none!important;min-height:100dvh;padding:24px!important;display:grid;place-items:center;background:#f7f5f0}
 .accessGate>section{width:min(460px,100%);background:#fff;border:1px solid var(--line);padding:30px;box-shadow:var(--shadow)}
 .accessGate .accessBrand{margin:-30px -30px 28px;padding:20px 30px;border-bottom:1px solid var(--line)}

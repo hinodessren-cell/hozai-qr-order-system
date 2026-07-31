@@ -365,7 +365,10 @@ export default function Home() {
 
       {scanOpen && <QrScanner items={items} close={() => setScanOpen(false)} found={(item) => { setScanOpen(false); setSelectedItem(item); }} />}
 
-      {selectedItem && <OrderModal item={selectedItem} history={orders.filter((order) => order.id === selectedItem.id)} close={() => setSelectedItem(null)} submit={placeOrder} />}
+      {selectedItem && <OrderModal item={selectedItem} history={orders.filter((order) => order.id === selectedItem.id)} close={() => setSelectedItem(null)} submit={async (updatedItem, quantity, purchaser, orderNote) => {
+        if (updatedItem.code !== selectedItem.code || updatedItem.name !== selectedItem.name) await updateBoardItem(updatedItem);
+        await placeOrder(updatedItem, quantity, purchaser, orderNote);
+      }} />}
 
       {editingItem && <ItemEditor item={editingItem === "new" ? null : editingItem} close={() => setEditingItem(null)} save={saveItem} />}
 
@@ -544,11 +547,20 @@ function QrScanner({ items, close, found }: { items: Item[]; close: () => void; 
   </section></div>;
 }
 
-function OrderModal({ item, history, close, submit }: { item: Item; history: Order[]; close: () => void; submit: (item: Item, quantity: number, purchaser: string, orderNote: string) => void }) {
-  const [quantity, setQuantity] = useState(Math.max(1, item.qty));
+function OrderModal({ item, history, close, submit }: { item: Item; history: Order[]; close: () => void; submit: (item: Item, quantity: number, purchaser: string, orderNote: string) => Promise<void> }) {
+  const previousQuantity = [...history].sort((a, b) => new Date(b.orderedAt).getTime() - new Date(a.orderedAt).getTime())[0]?.qty;
+  const [draft, setDraft] = useState(item);
+  const [quantity, setQuantity] = useState(Math.max(1, previousQuantity ?? item.qty));
   const [purchaser, setPurchaser] = useState("");
   const [orderNote, setOrderNote] = useState("");
-  return <div className="modalBackdrop" onClick={close}><section className="orderModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">ORDER ITEM</p><h2>{item.name}</h2><div className="orderCode">{item.code}<span>{item.category}</span></div><dl><div><dt>備考</dt><dd>{item.memo}</dd></div></dl>{history.length > 0 && <section className="previousOrders"><h3>前回までの発注履歴</h3>{history.slice(0, 3).map((order, index) => <article key={order.orderId}><div><b>{index === 0 ? "前回" : `${index + 1}回前`}</b><span>{formatOrderDate(order.orderedAt)}</span></div><strong>{order.qty}{order.unit}</strong><small>{order.purchaser} ・ {order.status}</small>{order.orderNote && <p className="historyOrderNote">発注メモ：{order.orderNote}</p>}</article>)}</section>}<label>発注者名（必須）<input autoFocus value={purchaser} onChange={(event) => setPurchaser(event.target.value)} placeholder="氏名を入力" maxLength={100}/></label><label>発注用メモ（任意）<textarea className="orderNoteInput" value={orderNote} onChange={(event) => setOrderNote(event.target.value)} placeholder="納期・購入先・連絡事項など" maxLength={500}/></label><label>発注数量<div className="quantity"><button aria-label="数量を減らす" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><input type="number" min="1" value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}/><span>{item.unit}</span><button aria-label="数量を増やす" onClick={() => setQuantity((value) => value + 1)}>＋</button></div></label><button className="primary wide" disabled={!purchaser.trim()} onClick={() => submit(item, quantity, purchaser, orderNote)}>この内容で発注する</button></section></div>;
+  const [submitting, setSubmitting] = useState(false);
+  const confirm = async () => {
+    if (!draft.code.trim() || !draft.name.trim() || !purchaser.trim() || submitting) return;
+    setSubmitting(true);
+    try { await submit({ ...draft, code: draft.code.trim(), name: draft.name.trim() }, quantity, purchaser, orderNote); }
+    catch { setSubmitting(false); }
+  };
+  return <div className="modalBackdrop" onClick={close}><section className="orderModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">ORDER ITEM</p><label className="orderEditableName">品名（必須）<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} maxLength={200}/></label><label className="orderEditableCode">品番（必須）<input value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} maxLength={100}/><span>{item.category}</span></label><dl><div><dt>備考</dt><dd>{item.memo}</dd></div></dl>{history.length > 0 && <section className="previousOrders"><h3>前回までの発注履歴</h3>{history.slice(0, 3).map((order, index) => <article key={order.orderId}><div><b>{index === 0 ? "前回" : `${index + 1}回前`}</b><span>{formatOrderDate(order.orderedAt)}</span></div><strong>{order.qty}{order.unit}</strong><small>{order.purchaser} ・ {order.status}</small>{order.orderNote && <p className="historyOrderNote">発注メモ：{order.orderNote}</p>}</article>)}</section>}<label>発注者名（必須）<input autoFocus value={purchaser} onChange={(event) => setPurchaser(event.target.value)} placeholder="氏名を入力" maxLength={100}/></label><label>発注用メモ（任意）<textarea className="orderNoteInput" value={orderNote} onChange={(event) => setOrderNote(event.target.value)} placeholder="納期・購入先・連絡事項など" maxLength={500}/></label><label>発注数量<div className="quantity"><button aria-label="数量を減らす" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button><input type="number" min="1" value={quantity} onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}/><span>{item.unit}</span><button aria-label="数量を増やす" onClick={() => setQuantity((value) => value + 1)}>＋</button></div></label><button className="primary wide" disabled={submitting || !purchaser.trim() || !draft.code.trim() || !draft.name.trim()} onClick={() => void confirm()}>{submitting ? "保存・発注中…" : "この内容で発注する"}</button></section></div>;
 }
 
 function formatOrderDate(value: string) {
