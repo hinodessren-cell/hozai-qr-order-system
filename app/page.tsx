@@ -397,13 +397,13 @@ function QrBoards({ items, columns, rows, width, height, qrSources }: { items: I
 }
 
 function PrintItemCard({ item, qrSource }: { item: Item; qrSource: string }) {
-  const codeSize = printTextSize(item.code, 12.5, 9, 7);
-  const nameSize = printTextSize(item.name, 10, 8, 6.5);
+  const codeSize = printTextSize(item.code, 9.5, 8, 6.5);
+  const nameSize = printTextSize(item.name, 12.5, 9.5, 7);
   return <article className="itemCard inlineItemCard" style={{ "--print-code-size": `${codeSize}pt`, "--print-name-size": `${nameSize}pt` } as React.CSSProperties}>
     <div className="inlineItemField"><span>カテゴリ</span><span className="printItemValue inlineItemCategory">{item.category}</span></div>
     <div className="itemCardQr"><img className="fakeQr" src={qrSource} onError={(event) => void useGeneratedQr(event.currentTarget, item.id)} alt=""/></div>
-    <div className="inlineItemField"><span>品番</span><span className="printItemValue inlineItemCode">{item.code}</span></div>
     <div className="inlineItemField"><span>品名</span><span className="printItemValue inlineItemName">{item.name}</span></div>
+    <div className="inlineItemField"><span>品番</span><span className="printItemValue inlineItemCode">{item.code}</span></div>
     <div className="inlineItemMemoField"><span>備考</span><span className="printItemValue inlineItemMemo">{item.memo}</span></div>
     <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><strong>{item.qty}</strong><span className="fixedUnit">{item.unit}</span></span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><strong>{item.orderPoint}</strong><span className="fixedUnit">{item.unit}</span></span></label></div>
   </article>;
