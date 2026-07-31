@@ -284,7 +284,7 @@ export default function Home() {
   return (
     <div className={`app density-${settings.density}${ipadDevice && settings.ipadFullscreen ? " ipadFullscreen" : ""}`} style={{ "--accent": settings.accent } as React.CSSProperties}>
       <aside className="sidebar">
-        <div className="brand" aria-label="MATERIAL ORDER CONTROL"><span className="brandLogo"/><div className="brandControl"><span>MATERIAL</span><strong>{settings.siteName}</strong></div></div>
+        <div className="brand" aria-label="MATERIAL ORDER CONTROL"><span className="brandLogo"/><div className="brandControl"><span>MATERIAL ORDER CONTROL</span><strong>{settings.siteName}</strong></div></div>
         <nav>{nav.map(([id, label, icon]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => openTab(id)}><span>{icon}</span><span className="navLabel">{label}</span>{id === "orders" && unreadOrders > 0 && <b className="notificationBadge" aria-label={`未確認 ${unreadOrders}件`}>{unreadOrders > 99 ? "99+" : unreadOrders}</b>}</button>)}</nav>
         <button className="settingsButton" onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button>
       </aside>
