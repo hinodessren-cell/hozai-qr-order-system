@@ -47,7 +47,7 @@ button,.cameraCapture,.manualScan summary{touch-action:manipulation;-webkit-tap-
     grid-template-columns:repeat(3,60mm)!important;
     grid-auto-rows:40mm!important;
     column-gap:3mm!important;
-    row-gap:3mm!important;
+    row-gap:0!important;
     justify-content:start!important;
     align-items:start!important
   }
