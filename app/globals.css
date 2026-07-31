@@ -133,8 +133,10 @@ button:active:not(:disabled){transform:translateY(2px) scale(.98)!important;filt
 button:disabled{cursor:wait;opacity:.68}
 .saveSettingsButton{min-width:132px;font-weight:900}
 .settingsToast{position:fixed;left:50%;bottom:28px;z-index:120;transform:translateX(-50%);padding:13px 20px;border-radius:999px;background:#0c6b4f;color:#fff;font-size:14px;font-weight:900;box-shadow:0 12px 36px #071a3345;animation:settingsToastIn .2s ease-out}
+.orderNotification{position:fixed;left:50%;bottom:28px;z-index:121;width:min(620px,calc(100vw - 28px));transform:translateX(-50%);display:flex;align-items:center;gap:14px;padding:14px 16px;background:#071a33;color:#fff;border-left:5px solid #ffd36a;box-shadow:0 14px 45px #071a3355}.orderNotification span{flex:1;font-weight:900}.orderNotification button{min-width:82px;min-height:42px;border:0;background:#d61f2c;color:#fff;font-weight:900}
 @keyframes settingsToastIn{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}
 @media(max-width:700px){.settingsToast{bottom:98px;white-space:nowrap}}
+@media(max-width:700px){.orderNotification{bottom:94px;align-items:stretch}.orderNotification button{min-width:72px}}
 .inlineItemNumbers label{justify-content:space-between}
 .inlineItemNumbers .numberLabel{color:#071a33;font-size:inherit;font-weight:900;white-space:nowrap}
 .inlineItemNumbers .numberWithUnit{display:inline-flex;align-items:center;justify-content:flex-end;gap:2px;margin-left:auto;white-space:nowrap}

@@ -1,4 +1,4 @@
-const CACHE_NAME = "hozai-qr-order-v7";
+const CACHE_NAME = "hozai-qr-order-v7.1";
 const APP_ASSETS = [
   "/offline.html",
   "/manifest.webmanifest",
@@ -78,6 +78,7 @@ self.addEventListener("push", (event) => {
     icon: "/icon-192.png",
     badge: "/icon-192.png",
     tag: message.itemId ? `order-${message.itemId}` : "new-order",
+    requireInteraction: true,
     data: { url: message.url },
   }));
 });

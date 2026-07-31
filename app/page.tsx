@@ -38,6 +38,7 @@ export default function Home() {
   const [settings, setSettings] = useState(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsNotice, setSettingsNotice] = useState("");
+  const [orderNotice, setOrderNotice] = useState("");
   const [printRequested, setPrintRequested] = useState(false);
   const [printItems, setPrintItems] = useState<Item[]>([]);
   const [printQrSources, setPrintQrSources] = useState<Record<string, string>>({});
@@ -82,11 +83,12 @@ export default function Home() {
         if (seenOrderIds.current && notificationEnabled.current) {
           const fresh = incoming.filter((order) => order.status === "発注待ち" && !seenOrderIds.current!.has(order.orderId));
           if ("Notification" in window && Notification.permission === "granted") {
-            fresh.forEach((order) => new Notification("新しい補材発注", { body: `${order.purchaser}：${order.code} ${order.name} ${order.qty}${order.unit}`, icon: "/icon-192.png", tag: `order-${order.orderId}` }));
+            fresh.forEach((order) => new Notification("新しい補材発注", { body: `${order.purchaser}：${order.code} ${order.name} ${order.qty}${order.unit}`, icon: "/icon-192.png", tag: `order-${order.orderId}`, requireInteraction: true }));
           } else if (fresh.length > 0) {
             const order = fresh[0];
-            setSettingsNotice(`● 新しい発注：${order.code} ${order.name}${fresh.length > 1 ? ` ほか${fresh.length - 1}件` : ""}`);
-            window.setTimeout(() => setSettingsNotice(""), 5000);
+            const message = `● 新しい発注：${order.code} ${order.name}${fresh.length > 1 ? ` ほか${fresh.length - 1}件` : ""}`;
+            setOrderNotice(message);
+            window.localStorage.setItem("pending-order-notice", message);
           }
         }
         seenOrderIds.current = new Set(incoming.map((order) => order.orderId));
@@ -137,6 +139,7 @@ export default function Home() {
     try { acknowledgedOrderIds.current = new Set(JSON.parse(window.localStorage.getItem("acknowledged-orders") ?? "[]")); } catch { acknowledgedOrderIds.current = new Set(); }
     try { acknowledgedStatusEvents.current = new Set(JSON.parse(window.localStorage.getItem("acknowledged-status-events") ?? "[]")); } catch { acknowledgedStatusEvents.current = new Set(); }
     notificationEnabled.current = window.localStorage.getItem("parent-notifications") === "enabled";
+    setOrderNotice(window.localStorage.getItem("pending-order-notice") ?? "");
     if (notificationEnabled.current) setPushStatus("Notification" in window && Notification.permission === "granted" ? "通知登録済み" : "アプリ内通知 ON");
     void refresh(true);
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 3000);
@@ -360,6 +363,7 @@ export default function Home() {
       </main>
       {ipadDevice && settings.ipadFullscreen && <div className="ipadFullscreenControls"><button onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button><button onClick={() => { const next = { ...settings, ipadFullscreen: false }; setSettings(next); void persistSettings(next).then(() => { setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); }).catch(showRequestError); }}>全画面を解除</button></div>}
       {settingsNotice && <div className="settingsToast" role="status">{settingsNotice}</div>}
+      {orderNotice && <div className="orderNotification" role="alert"><span>{orderNotice}</span><button onClick={() => { setOrderNotice(""); window.localStorage.removeItem("pending-order-notice"); }}>確認</button></div>}
 
       {scanOpen && <QrScanner items={items} close={() => setScanOpen(false)} found={(item) => { setScanOpen(false); setSelectedItem(item); }} />}
 
