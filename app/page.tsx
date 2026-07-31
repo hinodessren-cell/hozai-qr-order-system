@@ -401,7 +401,7 @@ function PrintItemCard({ item, qrSource }: { item: Item; qrSource: string }) {
   const nameSize = printTextSize(item.name, 12.5, 9.5, 7);
   return <article className="itemCard inlineItemCard" style={{ "--print-code-size": `${codeSize}pt`, "--print-name-size": `${nameSize}pt` } as React.CSSProperties}>
     <div className="inlineItemField"><span>カテゴリ</span><span className="printItemValue inlineItemCategory">{item.category}</span></div>
-    <div className="itemCardQr"><img className="fakeQr" src={qrSource} onError={(event) => void useGeneratedQr(event.currentTarget, item.id)} alt=""/></div>
+    <div className="itemCardQr"><img className="fakeQr" src={qrSource} data-item-id={item.id} onError={(event) => void useGeneratedQr(event.currentTarget, item.id)} alt=""/></div>
     <div className="inlineItemField"><span>品名</span><span className="printItemValue inlineItemName">{item.name}</span></div>
     <div className="inlineItemField"><span>品番</span><span className="printItemValue inlineItemCode">{item.code}</span></div>
     <div className="inlineItemMemoField"><span>備考</span><span className="printItemValue inlineItemMemo">{item.memo}</span></div>
@@ -648,14 +648,24 @@ function isIPad() {
 }
 
 async function printQrBoards() {
-  const deadline = Date.now() + 800;
+  const startedAt = Date.now();
+  const deadline = startedAt + 15_000;
+  let fallbackStarted = false;
   while (Date.now() < deadline) {
     const images = Array.from(document.querySelectorAll<HTMLImageElement>(".integratedPrintBoards .fakeQr"));
-    if (images.length > 0 && images.every((image) => image.complete && image.naturalWidth > 0)) break;
+    const incomplete = images.filter((image) => !image.complete || image.naturalWidth === 0);
+    if (images.length > 0 && incomplete.length === 0) {
+      await document.fonts?.ready;
+      window.print();
+      return;
+    }
+    if (!fallbackStarted && Date.now() - startedAt >= 3_000) {
+      fallbackStarted = true;
+      await Promise.all(incomplete.map((image) => useGeneratedQr(image, image.dataset.itemId ?? "")));
+    }
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
   }
-  await document.fonts?.ready;
-  window.print();
+  window.alert("QRコードの準備が完了しませんでした。通信状態を確認して、もう一度印刷してください。");
 }
 
 function urlBase64ToArrayBuffer(value: string) {
