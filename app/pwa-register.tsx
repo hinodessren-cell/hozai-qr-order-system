@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-const APP_VERSION = "7.4";
+const APP_VERSION = "7.5";
 
 export default function PwaRegister() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
@@ -17,6 +17,7 @@ export default function PwaRegister() {
   const [standalone, setStandalone] = useState(true);
   const [showInstall, setShowInstall] = useState(false);
   const [showIosHelp, setShowIosHelp] = useState(false);
+  const applyingUpdate = useRef(false);
 
   useEffect(() => {
     const isStandalone = window.matchMedia("(display-mode: standalone)").matches || Boolean((navigator as Navigator & { standalone?: boolean }).standalone);
@@ -56,11 +57,11 @@ export default function PwaRegister() {
 
     let active = true;
     const observe = (current: ServiceWorkerRegistration) => {
-      if (current.waiting) setUpdateAvailable(true);
+      if (current.waiting && !applyingUpdate.current) setUpdateAvailable(true);
       current.addEventListener("updatefound", () => {
         const worker = current.installing;
         worker?.addEventListener("statechange", () => {
-          if (worker.state === "installed" && navigator.serviceWorker.controller) setUpdateAvailable(true);
+          if (worker.state === "installed" && navigator.serviceWorker.controller && !applyingUpdate.current) setUpdateAvailable(true);
         });
       });
     };
@@ -110,10 +111,17 @@ export default function PwaRegister() {
     setShowInstall(false);
   };
 
-  const applyUpdate = () => {
-    const waiting = registration?.waiting;
-    if (waiting) waiting.postMessage({ type: "SKIP_WAITING" });
-    else window.location.reload();
+  const applyUpdate = async () => {
+    if (applyingUpdate.current) return;
+    applyingUpdate.current = true;
+    setUpdateAvailable(false);
+    const current = registration ?? await navigator.serviceWorker.getRegistration();
+    const waiting = current?.waiting;
+    if (waiting) {
+      waiting.postMessage({ type: "SKIP_WAITING" });
+      return;
+    }
+    window.location.reload();
   };
 
   return <>
