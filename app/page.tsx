@@ -79,9 +79,15 @@ export default function Home() {
       if (data?.items?.length) setItems(data.items);
       if (Array.isArray(data?.orders)) {
         const incoming = data.orders as Order[];
-        if (seenOrderIds.current && notificationEnabled.current && "Notification" in window && Notification.permission === "granted") {
+        if (seenOrderIds.current && notificationEnabled.current) {
           const fresh = incoming.filter((order) => order.status === "発注待ち" && !seenOrderIds.current!.has(order.orderId));
-          fresh.forEach((order) => new Notification("新しい補材発注", { body: `${order.purchaser}：${order.code} ${order.name} ${order.qty}${order.unit}`, icon: "/icon-192.png", tag: `order-${order.orderId}` }));
+          if ("Notification" in window && Notification.permission === "granted") {
+            fresh.forEach((order) => new Notification("新しい補材発注", { body: `${order.purchaser}：${order.code} ${order.name} ${order.qty}${order.unit}`, icon: "/icon-192.png", tag: `order-${order.orderId}` }));
+          } else if (fresh.length > 0) {
+            const order = fresh[0];
+            setSettingsNotice(`● 新しい発注：${order.code} ${order.name}${fresh.length > 1 ? ` ほか${fresh.length - 1}件` : ""}`);
+            window.setTimeout(() => setSettingsNotice(""), 5000);
+          }
         }
         seenOrderIds.current = new Set(incoming.map((order) => order.orderId));
         setUnreadOrders(incoming.filter((order) => order.status === "発注待ち" && !acknowledgedOrderIds.current.has(order.orderId)).length);
@@ -131,7 +137,7 @@ export default function Home() {
     try { acknowledgedOrderIds.current = new Set(JSON.parse(window.localStorage.getItem("acknowledged-orders") ?? "[]")); } catch { acknowledgedOrderIds.current = new Set(); }
     try { acknowledgedStatusEvents.current = new Set(JSON.parse(window.localStorage.getItem("acknowledged-status-events") ?? "[]")); } catch { acknowledgedStatusEvents.current = new Set(); }
     notificationEnabled.current = window.localStorage.getItem("parent-notifications") === "enabled";
-    if (notificationEnabled.current && "Notification" in window && Notification.permission === "granted") setPushStatus("通知登録済み");
+    if (notificationEnabled.current) setPushStatus("Notification" in window && Notification.permission === "granted" ? "通知登録済み" : "アプリ内通知 ON");
     void refresh(true);
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 3000);
     const onVisible = () => { if (document.visibilityState === "visible") void refresh(); };
@@ -256,13 +262,22 @@ export default function Home() {
   }
   async function enableParentNotifications() {
     if (!("Notification" in window)) {
-      window.alert("この端末では通知を利用できません。");
+      window.localStorage.setItem("parent-notifications", "enabled");
+      notificationEnabled.current = true;
+      setPushStatus("アプリ内通知 ON");
+      setSettingsNotice("✓ アプリを開いている間の通知を有効にしました");
+      window.setTimeout(() => setSettingsNotice(""), 3000);
       return;
     }
     try {
       const permission = await Notification.requestPermission();
       if (permission !== "granted") {
-        window.alert("通知が許可されていません。端末の設定をご確認ください。");
+        window.localStorage.setItem("parent-notifications", "enabled");
+        notificationEnabled.current = true;
+        setPushStatus("アプリ内通知 ON");
+        setSettingsNotice("✓ アプリ内通知を有効にしました");
+        window.setTimeout(() => setSettingsNotice(""), 3000);
+        window.alert("端末通知はブラウザでブロックされています。アプリを開いている間は画面内で通知します。端末通知も使う場合は、ブラウザのサイト設定から「通知」を許可してください。");
         return;
       }
       setPushStatus("登録中…");
@@ -380,7 +395,9 @@ function QrBoards({ items, columns, rows, width, height, qrSources }: { items: I
 }
 
 function PrintItemCard({ item, qrSource }: { item: Item; qrSource: string }) {
-  return <article className="itemCard inlineItemCard">
+  const codeSize = printTextSize(item.code, 10.5, 7.5, 6);
+  const nameSize = printTextSize(item.name, 8.2, 6.8, 5.6);
+  return <article className="itemCard inlineItemCard" style={{ "--print-code-size": `${codeSize}pt`, "--print-name-size": `${nameSize}pt` } as React.CSSProperties}>
     <div className="inlineItemField"><span>カテゴリ</span><span className="printItemValue inlineItemCategory">{item.category}</span></div>
     <div className="itemCardQr"><img className="fakeQr" src={qrSource} alt=""/></div>
     <div className="inlineItemField"><span>品番</span><span className="printItemValue inlineItemCode">{item.code}</span></div>
@@ -389,6 +406,11 @@ function PrintItemCard({ item, qrSource }: { item: Item; qrSource: string }) {
     <div className="inlineItemMemoField"><span>備考</span><span className="printItemValue inlineItemMemo">{item.memo}</span></div>
     <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><strong>{item.qty}</strong><span className="fixedUnit">{item.unit}</span></span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><strong>{item.orderPoint}</strong><span className="fixedUnit">{item.unit}</span></span></label></div>
   </article>;
+}
+
+function printTextSize(value: string, regular: number, medium: number, compact: number) {
+  const length = Array.from(value).reduce((total, character) => total + (/^[\u0000-\u00ff]$/.test(character) ? .55 : 1), 0);
+  return length > 30 ? compact : length > 18 ? medium : regular;
 }
 
 function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise<void> }) {
