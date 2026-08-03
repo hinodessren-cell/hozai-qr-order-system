@@ -145,7 +145,7 @@ button:disabled{cursor:wait;opacity:.68}
 .itemGrid .inlineItemCard{content-visibility:auto;contain-intrinsic-size:240px}
 .inlineItemNumbers .numberLabel{color:#071a33;font-size:inherit;font-weight:900;white-space:nowrap}
 .inlineItemNumbers .numberWithUnit{display:inline-flex;align-items:center;justify-content:flex-end;gap:2px;margin-left:auto;white-space:nowrap}
-.inlineItemNumbers .numberWithUnit input[type=number]{width:42px!important;margin:0!important;padding-inline:3px!important;text-align:right}
+.inlineItemNumbers .numberWithUnit input[type=number]{width:72px!important;margin:0!important;padding-inline:5px 18px!important;text-align:right}
 .inlineItemNumbers .numberWithUnit .inlineItemUnit{width:48px!important;margin:0!important;padding-inline:2px!important;text-align:left}
 .inlineItemNumbers .numberWithUnit .orderPointTextInput{width:112px!important;margin:0!important;padding-inline:3px!important;text-align:left}
 .inlineMeta .orderPointTextInput{width:112px!important}
@@ -275,7 +275,7 @@ button:disabled{cursor:wait;opacity:.68}
   .printItemCards .inlineItemNumbers label{font-size:6.8pt!important}
   .printItemCards .inlineItemNumbers input{font-size:7.2pt!important}
   .printItemCards .numberWithUnit{display:inline-flex!important;align-items:center!important;justify-content:flex-end!important;gap:0!important;margin-left:auto!important}
-  .printItemCards .numberWithUnit strong{font-size:7.2pt!important;line-height:1!important}
+  .printItemCards .numberWithUnit strong{min-width:8mm!important;max-width:none!important;overflow:visible!important;font-size:7.2pt!important;line-height:1!important;text-align:right!important;white-space:nowrap!important}
   .printItemCards .numberWithUnit input[type=number]{width:6mm!important;padding:0!important;margin:0!important;text-align:right!important}
   .printItemCards .numberWithUnit .inlineItemUnit{width:6mm!important;padding:0!important;margin:0!important;text-align:left!important}
   .printItemCards .numberWithUnit .fixedUnit{margin-left:.3mm!important;white-space:nowrap!important}
