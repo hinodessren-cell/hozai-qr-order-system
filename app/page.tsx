@@ -443,8 +443,8 @@ function singleLineOrderPointSize(value: string) {
 }
 
 function singleLineItemNameSize(value: string) {
-  const length = Math.max(1, Array.from(String(value)).reduce((total, character) => total + (/\s/.test(character) ? .3 : /^[\u0000-\u00ff]$/.test(character) ? .55 : 1), 0));
-  return Math.max(8, Math.min(15, 238 / length));
+  const length = Math.max(1, Array.from(String(value).normalize("NFKC")).reduce((total, character) => total + (/\s/.test(character) ? .3 : /^[\u0000-\u00ff]$/.test(character) ? .55 : 1), 0));
+  return Math.max(4.5, Math.min(15, 112 / length));
 }
 
 function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise<void> }) {
