@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import QrScannerEngine from "qr-scanner";
 import QRCode from "qrcode";
 
@@ -171,6 +171,20 @@ export default function Home() {
     .filter((item) => matchesSearch(query, [item.id, item.code, item.name, item.category, item.memo, item.unit]))
     .sort((a, b) => compareItems(a, b, itemSort)), [items, query, itemCategory, itemSort]);
   const counts = (status: Status) => filtered.filter((o) => o.status === status).length;
+  useEffect(() => {
+    if (tab !== "items") return;
+    let frame = 0;
+    const refit = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => document.querySelectorAll<HTMLInputElement>(".itemGrid .inlineItemName").forEach(fitItemNameInput));
+    };
+    refit();
+    const grid = document.querySelector(".itemGrid");
+    const observer = grid && "ResizeObserver" in window ? new ResizeObserver(refit) : null;
+    if (grid) observer?.observe(grid);
+    window.addEventListener("resize", refit);
+    return () => { window.cancelAnimationFrame(frame); observer?.disconnect(); window.removeEventListener("resize", refit); };
+  }, [tab, filteredItems.length, settings.cardColumns]);
   const openTab = (id: string) => {
     if (id === "scan") { setScanOpen(true); return; }
     setTab(id);
@@ -442,11 +456,6 @@ function singleLineOrderPointSize(value: string) {
   return Math.max(6, Math.min(11, 104 / length));
 }
 
-function singleLineItemNameSize(value: string) {
-  const length = Math.max(1, Array.from(String(value)).reduce((total, character) => total + (/\s/.test(character) ? .3 : /^[\u0000-\u00ff]$/.test(character) ? .55 : 1), 0));
-  return Math.max(3.8, Math.min(13.5, 100 / length));
-}
-
 function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise<void> }) {
   const [draft, setDraft] = useState(item);
   const commit = async () => {
@@ -472,16 +481,33 @@ function InlineItemCard({ item, save, edit, order }: { item: Item; save: (item: 
   };
   const keyDown = (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") event.currentTarget.blur(); };
   const field = (key: keyof Item, label: string, className = "") => <input className={className} aria-label={label} value={String(draft[key])} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>;
-  return <article className="itemCard inlineItemCard" style={{ "--item-name-size": `${singleLineItemNameSize(draft.name)}px` } as React.CSSProperties}>
+  return <article className="itemCard inlineItemCard">
     <label className="inlineItemField"><span>カテゴリ</span>{field("category", "カテゴリ", "inlineItemCategory")}</label>
     <div className="itemCardQr"><FakeQr value={item.id}/></div>
     <label className="inlineItemField"><span>品番</span>{field("code", "品番", "inlineItemCode")}</label>
-    <label className="inlineItemField"><span>品名</span>{field("name", "品名", "inlineItemName")}</label>
+    <label className="inlineItemField"><span>品名</span><AutoFitItemNameInput value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
     <label className="inlineItemMemoField"><span>備考</span>{field("memo", "備考", "inlineItemMemo")}</label>
     <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><input aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><input className="orderPointTextInput" style={{ fontSize: `${singleLineOrderPointSize(draft.orderPoint)}px` }} aria-label="発注点" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></span></label></div>
     <OptionsMenu label={`${item.name}の操作`}><button onClick={edit}>詳細編集</button></OptionsMenu>
     <div className="itemActions"><button className="primary" onClick={order}>発注する</button></div>
   </article>;
+}
+
+function AutoFitItemNameInput({ value, onChange, onBlur, onKeyDown }: { value: string; onChange: (value: string) => void; onBlur: () => void; onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const fit = useCallback(() => { if (inputRef.current) fitItemNameInput(inputRef.current); }, []);
+  useLayoutEffect(() => { fit(); }, [value, fit]);
+  return <input ref={inputRef} className="inlineItemName" aria-label="品名" value={value} onChange={(event) => { onChange(event.target.value); window.requestAnimationFrame(fit); }} onBlur={onBlur} onKeyDown={onKeyDown}/>;
+}
+
+function fitItemNameInput(input: HTMLInputElement) {
+  const card = input.closest<HTMLElement>(".inlineItemCard");
+  if (!card) return;
+  card.style.setProperty("--item-name-size", "15px");
+  const available = input.clientWidth;
+  const required = input.scrollWidth;
+  const size = available > 0 && required > available ? 15 * available / required * .97 : 15;
+  card.style.setProperty("--item-name-size", `${Math.max(1, Math.min(15, size))}px`);
 }
 
 function OptionsMenu({ label, children }: { label: string; children: React.ReactNode }) {
