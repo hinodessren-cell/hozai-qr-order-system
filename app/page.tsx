@@ -503,11 +503,12 @@ function AutoFitItemNameInput({ value, onChange, onBlur, onKeyDown }: { value: s
 function fitItemNameInput(input: HTMLInputElement) {
   const card = input.closest<HTMLElement>(".inlineItemCard");
   if (!card) return;
-  card.style.setProperty("--item-name-size", "15px");
-  const available = input.clientWidth;
-  const required = input.scrollWidth;
-  const size = available > 0 && required > available ? 15 * available / required * .97 : 15;
-  card.style.setProperty("--item-name-size", `${Math.max(1, Math.min(15, size))}px`);
+  let size = 15;
+  card.style.setProperty("--item-name-size", `${size}px`);
+  for (let attempt = 0; attempt < 3 && input.clientWidth > 0 && input.scrollWidth > input.clientWidth; attempt += 1) {
+    size *= Math.max(.1, (input.clientWidth - 1) / input.scrollWidth);
+    card.style.setProperty("--item-name-size", `${Math.max(1, size)}px`);
+  }
 }
 
 function OptionsMenu({ label, children }: { label: string; children: React.ReactNode }) {
