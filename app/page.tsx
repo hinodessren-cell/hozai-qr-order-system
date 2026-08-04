@@ -413,13 +413,18 @@ function PrintItemCard({ item, qrSource }: { item: Item; qrSource: string }) {
     <div className="inlineItemField"><span>品名</span><span className="printItemValue inlineItemName">{item.name}</span></div>
     <div className="inlineItemField"><span>品番</span><span className="printItemValue inlineItemCode">{item.code}</span></div>
     <div className="inlineItemMemoField"><span>備考</span><span className="printItemValue inlineItemMemo">{item.memo}</span></div>
-    <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><strong>{item.qty}</strong><span className="fixedUnit">{item.unit}</span></span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><strong>{item.orderPoint}</strong>{/^\d+$/.test(String(item.orderPoint)) && <span className="fixedUnit">{item.unit}</span>}</span></label></div>
+    <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><strong>{item.qty}</strong><span className="fixedUnit">{item.unit}</span></span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><strong style={{ fontSize: `${singleLineOrderPointSize(item.orderPoint)}px` }}>{item.orderPoint}</strong>{/^\d+$/.test(String(item.orderPoint)) && <span className="fixedUnit">{item.unit}</span>}</span></label></div>
   </article>;
 }
 
 function printTextSize(value: string, regular: number, medium: number, compact: number) {
   const length = Array.from(value).reduce((total, character) => total + (/^[\u0000-\u00ff]$/.test(character) ? .55 : 1), 0);
   return length > 30 ? compact : length > 18 ? medium : regular;
+}
+
+function singleLineOrderPointSize(value: string) {
+  const length = Math.max(1, Array.from(String(value)).reduce((total, character) => total + (/^[\u0000-\u00ff]$/.test(character) ? .55 : 1), 0));
+  return Math.max(6, Math.min(11, 104 / length));
 }
 
 function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise<void> }) {
@@ -453,7 +458,7 @@ function InlineItemCard({ item, save, edit, order }: { item: Item; save: (item: 
     <label className="inlineItemField"><span>品番</span>{field("code", "品番", "inlineItemCode")}</label>
     <label className="inlineItemField"><span>品名</span>{field("name", "品名", "inlineItemName")}</label>
     <label className="inlineItemMemoField"><span>備考</span>{field("memo", "備考", "inlineItemMemo")}</label>
-    <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><input aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><input className="orderPointTextInput" aria-label="発注点" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></span></label></div>
+    <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><input aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><input className="orderPointTextInput" style={{ fontSize: `${singleLineOrderPointSize(draft.orderPoint)}px` }} aria-label="発注点" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></span></label></div>
     <OptionsMenu label={`${item.name}の操作`}><button onClick={edit}>詳細編集</button></OptionsMenu>
     <div className="itemActions"><button className="primary" onClick={order}>発注する</button></div>
   </article>;

@@ -151,8 +151,8 @@ button:disabled{cursor:wait;opacity:.68}
 .inlineMeta .orderPointTextInput{width:112px!important}
 .inlineItemNumbers .fixedUnit{color:inherit;font-size:inherit;font-weight:900}
 .inlineItemNumbers .orderPointField{min-width:0;align-items:flex-start!important}
-.inlineItemNumbers .orderPointField .numberWithUnit{min-width:0;white-space:normal;text-align:left;line-height:1.35;overflow-wrap:anywhere;word-break:break-word}
-.inlineItemNumbers .orderPointField .numberWithUnit strong{display:block;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.inlineItemNumbers .orderPointField .numberWithUnit{min-width:0;white-space:nowrap;text-align:left;line-height:1.35}
+.inlineItemNumbers .orderPointField .numberWithUnit strong{display:block;min-width:0;white-space:nowrap}
 .inlineItemNumbers .orderPointField .orderPointTextInput{width:100%!important;min-width:0!important}
 .ipadFullscreen .sidebar,.ipadFullscreen main>header{display:none!important}
 .ipadFullscreen main{margin:0!important;max-width:none!important;width:100%!important;min-height:100dvh;padding:18px 20px 28px!important}
