@@ -36,6 +36,7 @@ export default function Home() {
   const [orders, setOrders] = useState(initialOrders);
   const [items, setItems] = useState(initialItems);
   const [query, setQuery] = useState("");
+  const [itemCategory, setItemCategory] = useState("all");
   const [itemSort, setItemSort] = useState<"newest" | "oldest" | "code" | "name">("newest");
   const [settings, setSettings] = useState(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -156,9 +157,12 @@ export default function Home() {
   }, [ipadDevice, settings.ipadFullscreen]);
 
   const filtered = useMemo(() => orders.filter((order) => matchesSearch(query, [order.id, order.orderId, order.code, order.name, order.category, order.purchaser, order.memo, order.orderNote, order.status])), [orders, query]);
+  const itemCategories = useMemo(() => [...new Set(items.map((item) => item.category.trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "ja", { numeric: true, sensitivity: "base" })), [items]);
   const filteredItems = useMemo(() => items
+    .filter((item) => itemCategory === "all" || item.category.trim() === itemCategory)
     .filter((item) => matchesSearch(query, [item.id, item.code, item.name, item.category, item.memo, item.unit]))
-    .sort((a, b) => compareItems(a, b, itemSort)), [items, query, itemSort]);
+    .sort((a, b) => compareItems(a, b, itemSort)), [items, query, itemCategory, itemSort]);
   const counts = (status: Status) => filtered.filter((o) => o.status === status).length;
   const openTab = (id: string) => {
     if (id === "scan") { setScanOpen(true); return; }
@@ -306,7 +310,7 @@ export default function Home() {
   }
 
   async function startQrBoardPrint() {
-    const targetItems = normalizeSearch(query) ? filteredItems : items;
+    const targetItems = normalizeSearch(query) || itemCategory !== "all" ? filteredItems : items;
     if (targetItems.length === 0) {
       window.alert("印刷できる品目がありません。検索条件をご確認ください。");
       return;
@@ -360,7 +364,7 @@ export default function Home() {
         {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
         {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="すべての履歴" />}
 
-        {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><label className="search stickyItemSearch">⌕<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="品番・品名・カテゴリで検索" aria-label="品番・品名・カテゴリで検索" /></label><output className="itemResultCount" aria-live="polite">検索結果 <strong>{filteredItems.length.toLocaleString("ja-JP")}</strong>品 ／ 全{items.length.toLocaleString("ja-JP")}品</output><label className="itemSortControl"><span>並び順</span><select value={itemSort} onChange={(event) => setItemSort(event.target.value as typeof itemSort)} aria-label="品目の並び順"><option value="newest">新着順</option><option value="oldest">登録が古い順</option><option value="code">品番順</option><option value="name">品名順</option></select></label><button className="outline" onClick={() => void startQrBoardPrint()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{filteredItems.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.memo}`} item={item} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div>{printRequested && <div className="integratedPrintBoards"><QrBoards items={printItems} columns={settings.boardColumns} rows={settings.boardRows} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} qrSources={printQrSources} /></div>}</section>}
+        {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><label className="search stickyItemSearch">⌕<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="品番・品名・カテゴリで検索" aria-label="品番・品名・カテゴリで検索" /></label><label className="itemCategoryControl"><span>カテゴリ</span><select value={itemCategory} onChange={(event) => setItemCategory(event.target.value)} aria-label="カテゴリで絞り込み"><option value="all">すべて</option>{itemCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label><output className="itemResultCount" aria-live="polite">検索結果 <strong>{filteredItems.length.toLocaleString("ja-JP")}</strong>品 ／ 全{items.length.toLocaleString("ja-JP")}品</output><label className="itemSortControl"><span>並び順</span><select value={itemSort} onChange={(event) => setItemSort(event.target.value as typeof itemSort)} aria-label="品目の並び順"><option value="newest">新着順</option><option value="oldest">登録が古い順</option><option value="code">品番順</option><option value="name">品名順</option></select></label><button className="outline" onClick={() => void startQrBoardPrint()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{filteredItems.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.memo}`} item={item} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div>{printRequested && <div className="integratedPrintBoards"><QrBoards items={printItems} columns={settings.boardColumns} rows={settings.boardRows} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} qrSources={printQrSources} /></div>}</section>}
       </main>
       {ipadDevice && settings.ipadFullscreen && <div className="ipadFullscreenControls"><button onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button><button onClick={() => { const next = { ...settings, ipadFullscreen: false }; setSettings(next); void persistSettings(next).then(() => { setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); }).catch(showRequestError); }}>全画面を解除</button></div>}
       {settingsNotice && <div className="settingsToast" role="status">{settingsNotice}</div>}
@@ -664,14 +668,20 @@ async function persistSettings(settings: typeof defaultSettings) {
 }
 
 function normalizeSearch(value: string) {
-  return value.normalize("NFKC").toLocaleLowerCase("ja-JP").replace(/\s+/g, " ").trim();
+  return value.normalize("NFKC").toLocaleLowerCase("ja-JP")
+    .replace(/[ぁ-ゖ]/g, (character) => String.fromCharCode(character.charCodeAt(0) + 0x60))
+    .replace(/[‐‑‒–—―ーｰ]/g, "-")
+    .replace(/[×✕＊*]/g, "x")
+    .replace(/[・･,，、/／\\|｜()（）［\][\]{}｛｝:：]/g, " ")
+    .replace(/\s+/g, " ").trim();
 }
 
 function matchesSearch(query: string, values: Array<string | number | null | undefined>) {
   const terms = normalizeSearch(query).split(" ").filter(Boolean);
   if (terms.length === 0) return true;
   const searchable = normalizeSearch(values.filter((value) => value !== null && value !== undefined).join(" "));
-  return terms.every((term) => searchable.includes(term));
+  const compactSearchable = searchable.replace(/[\s-]/g, "");
+  return terms.every((term) => searchable.includes(term) || compactSearchable.includes(term.replace(/[\s-]/g, "")));
 }
 
 function compareItems(a: Item, b: Item, sort: "newest" | "oldest" | "code" | "name") {
