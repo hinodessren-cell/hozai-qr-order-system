@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import QrScannerEngine from "qr-scanner";
 import QRCode from "qrcode";
 
@@ -72,6 +72,20 @@ export default function Home() {
   }, []);
 
   useEffect(() => { void refreshAccess(); }, [refreshAccess]);
+  useEffect(() => {
+    let frame = 0;
+    const refitAll = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => document.querySelectorAll<HTMLInputElement>("input").forEach(fitSingleLineInput));
+    };
+    const onInput = (event: Event) => { if (event.target instanceof HTMLInputElement) window.requestAnimationFrame(() => fitSingleLineInput(event.target as HTMLInputElement)); };
+    const observer = new MutationObserver(refitAll);
+    observer.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener("input", onInput, true);
+    window.addEventListener("resize", refitAll);
+    refitAll();
+    return () => { window.cancelAnimationFrame(frame); observer.disconnect(); document.removeEventListener("input", onInput, true); window.removeEventListener("resize", refitAll); };
+  }, []);
   useEffect(() => { if (settingsOpen && access.isOwner) void refreshAccess(); }, [settingsOpen, access.isOwner, refreshAccess]);
   useEffect(() => {
     if (access.status !== "approved" || !access.isOwner) return;
@@ -178,20 +192,6 @@ export default function Home() {
   useEffect(() => { setItemPage(1); }, [query, itemCategory, itemSort]);
   useEffect(() => { if (itemPage > itemPageCount) setItemPage(itemPageCount); }, [itemPage, itemPageCount]);
   const counts = (status: Status) => filtered.filter((o) => o.status === status).length;
-  useEffect(() => {
-    if (tab !== "items") return;
-    let frame = 0;
-    const refit = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => document.querySelectorAll<HTMLInputElement>(".itemGrid .inlineItemName").forEach(fitItemNameInput));
-    };
-    refit();
-    const grid = document.querySelector(".itemGrid");
-    const observer = grid && "ResizeObserver" in window ? new ResizeObserver(refit) : null;
-    if (grid) observer?.observe(grid);
-    window.addEventListener("resize", refit);
-    return () => { window.cancelAnimationFrame(frame); observer?.disconnect(); window.removeEventListener("resize", refit); };
-  }, [tab, paginatedItems.length, currentItemPage, settings.cardColumns]);
   const openTab = (id: string) => {
     if (id === "scan") { setScanOpen(true); return; }
     setTab(id);
@@ -492,7 +492,7 @@ function InlineItemCard({ item, save, edit, order }: { item: Item; save: (item: 
     <label className="inlineItemField"><span>カテゴリ</span>{field("category", "カテゴリ", "inlineItemCategory")}</label>
     <div className="itemCardQr"><FakeQr value={item.id}/></div>
     <label className="inlineItemField"><span>品番</span>{field("code", "品番", "inlineItemCode")}</label>
-    <label className="inlineItemField"><span>品名</span><AutoFitItemNameInput value={draft.name} onChange={(value) => setDraft({ ...draft, name: value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
+    <label className="inlineItemField"><span>品名</span>{field("name", "品名", "inlineItemName")}</label>
     <label className="inlineItemMemoField"><span>備考</span>{field("memo", "備考", "inlineItemMemo")}</label>
     <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><input aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><input className="orderPointTextInput" style={{ fontSize: `${singleLineOrderPointSize(draft.orderPoint)}px` }} aria-label="発注点" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></span></label></div>
     <OptionsMenu label={`${item.name}の操作`}><button onClick={edit}>詳細編集</button></OptionsMenu>
@@ -500,21 +500,15 @@ function InlineItemCard({ item, save, edit, order }: { item: Item; save: (item: 
   </article>;
 }
 
-function AutoFitItemNameInput({ value, onChange, onBlur, onKeyDown }: { value: string; onChange: (value: string) => void; onBlur: () => void; onKeyDown: (event: React.KeyboardEvent<HTMLInputElement>) => void }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const fit = useCallback(() => { if (inputRef.current) fitItemNameInput(inputRef.current); }, []);
-  useLayoutEffect(() => { fit(); }, [value, fit]);
-  return <input ref={inputRef} className="inlineItemName" aria-label="品名" value={value} onChange={(event) => { onChange(event.target.value); window.requestAnimationFrame(fit); }} onBlur={onBlur} onKeyDown={onKeyDown}/>;
-}
-
-function fitItemNameInput(input: HTMLInputElement) {
-  const card = input.closest<HTMLElement>(".inlineItemCard");
-  if (!card) return;
-  let size = 15;
-  card.style.setProperty("--item-name-size", `${size}px`);
-  for (let attempt = 0; attempt < 3 && input.clientWidth > 0 && input.scrollWidth > input.clientWidth; attempt += 1) {
+function fitSingleLineInput(input: HTMLInputElement) {
+  if (["checkbox", "radio", "range", "color", "file", "button", "submit", "reset", "hidden"].includes(input.type) || input.dataset.autoFit === "off") return;
+  const naturalSize = Number(input.dataset.autoFitSize || Number.parseFloat(window.getComputedStyle(input).fontSize) || 16);
+  input.dataset.autoFitSize = String(naturalSize);
+  let size = naturalSize;
+  input.style.setProperty("font-size", `${size}px`, "important");
+  for (let attempt = 0; attempt < 4 && input.clientWidth > 0 && input.scrollWidth > input.clientWidth; attempt += 1) {
     size *= Math.max(.1, (input.clientWidth - 1) / input.scrollWidth);
-    card.style.setProperty("--item-name-size", `${Math.max(1, size)}px`);
+    input.style.setProperty("font-size", `${Math.max(1, size)}px`, "important");
   }
 }
 
