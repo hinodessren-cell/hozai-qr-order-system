@@ -72,6 +72,13 @@ export default function Home() {
 
   useEffect(() => { void refreshAccess(); }, [refreshAccess]);
   useEffect(() => { if (settingsOpen && access.isOwner) void refreshAccess(); }, [settingsOpen, access.isOwner, refreshAccess]);
+  useEffect(() => {
+    if (access.status !== "approved" || !access.isOwner) return;
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refreshAccess(); }, 10_000);
+    const onVisible = () => { if (document.visibilityState === "visible") void refreshAccess(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
+  }, [access.status, access.isOwner, refreshAccess]);
 
   useEffect(() => {
     if (access.status !== "approved") return;
@@ -337,6 +344,7 @@ export default function Home() {
     ["dashboard", "概要", "▦"], ["scan", "カメラ", "◎"], ["orders", "発注管理", "⇄"],
     ["history", "履歴", "◷"], ["items", "品目・看板", "▤"],
   ];
+  const pendingAccessCount = access.isOwner ? access.accounts.filter((account) => account.status === "pending").length : 0;
 
   if (access.status !== "approved") return <AccessGate access={access} refresh={refreshAccess} />;
 
@@ -345,7 +353,7 @@ export default function Home() {
       <aside className="sidebar">
         <div className="brand" aria-label="MATERIAL ORDER CONTROL"><span className="brandLogo"/><div className="brandControl"><span>MATERIAL ORDER CONTROL</span><strong>{settings.siteName}</strong></div></div>
         <nav>{nav.map(([id, label, icon]) => <button key={id} className={tab === id ? "active" : ""} onClick={() => openTab(id)}><span>{icon}</span><span className="navLabel">{label}</span>{id === "orders" && unreadOrders > 0 && <b className="notificationBadge" aria-label={`未確認 ${unreadOrders}件`}>{unreadOrders > 99 ? "99+" : unreadOrders}</b>}</button>)}</nav>
-        <button className="settingsButton" onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button>
+        <button className="settingsButton" onClick={() => setSettingsOpen(true)}>⚙ 詳細設定{pendingAccessCount > 0 && <b className="notificationBadge settingsNotificationBadge" aria-label={`アクセス許可申請 ${pendingAccessCount}件`}>{pendingAccessCount > 99 ? "99+" : pendingAccessCount}</b>}</button>
       </aside>
 
       <main>
@@ -366,7 +374,7 @@ export default function Home() {
 
         {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><label className="search stickyItemSearch">⌕<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="品番・品名・カテゴリで検索" aria-label="品番・品名・カテゴリで検索" /></label><label className="itemCategoryControl"><span>カテゴリ</span><select value={itemCategory} onChange={(event) => setItemCategory(event.target.value)} aria-label="カテゴリで絞り込み"><option value="all">すべて</option>{itemCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label><output className="itemResultCount" aria-live="polite">検索結果 <strong>{filteredItems.length.toLocaleString("ja-JP")}</strong>品 ／ 全{items.length.toLocaleString("ja-JP")}品</output><label className="itemSortControl"><span>並び順</span><select value={itemSort} onChange={(event) => setItemSort(event.target.value as typeof itemSort)} aria-label="品目の並び順"><option value="newest">新着順</option><option value="oldest">登録が古い順</option><option value="code">品番順</option><option value="name">品名順</option></select></label><button className="outline" onClick={() => void startQrBoardPrint()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{filteredItems.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.memo}`} item={item} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div>{printRequested && <div className="integratedPrintBoards"><QrBoards items={printItems} columns={settings.boardColumns} rows={settings.boardRows} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} qrSources={printQrSources} /></div>}</section>}
       </main>
-      {ipadDevice && settings.ipadFullscreen && <div className="ipadFullscreenControls"><button onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button><button onClick={() => { const next = { ...settings, ipadFullscreen: false }; setSettings(next); void persistSettings(next).then(() => { setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); }).catch(showRequestError); }}>全画面を解除</button></div>}
+      {ipadDevice && settings.ipadFullscreen && <div className="ipadFullscreenControls"><button className="fullscreenSettingsButton" onClick={() => setSettingsOpen(true)}>⚙ 詳細設定{pendingAccessCount > 0 && <b className="notificationBadge settingsNotificationBadge">{pendingAccessCount > 99 ? "99+" : pendingAccessCount}</b>}</button><button onClick={() => { const next = { ...settings, ipadFullscreen: false }; setSettings(next); void persistSettings(next).then(() => { setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); }).catch(showRequestError); }}>全画面を解除</button></div>}
       {settingsNotice && <div className="settingsToast" role="status">{settingsNotice}</div>}
       {orderNotice && <div className="orderNotification" role="alert"><span>{orderNotice}</span><button onClick={() => { setOrderNotice(""); window.localStorage.removeItem("pending-order-notice"); }}>確認</button></div>}
 
@@ -434,6 +442,11 @@ function singleLineOrderPointSize(value: string) {
   return Math.max(6, Math.min(11, 104 / length));
 }
 
+function singleLineItemNameSize(value: string) {
+  const length = Math.max(1, Array.from(String(value)).reduce((total, character) => total + (/\s/.test(character) ? .3 : /^[\u0000-\u00ff]$/.test(character) ? .55 : 1), 0));
+  return Math.max(8, Math.min(15, 238 / length));
+}
+
 function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise<void> }) {
   const [draft, setDraft] = useState(item);
   const commit = async () => {
@@ -459,7 +472,7 @@ function InlineItemCard({ item, save, edit, order }: { item: Item; save: (item: 
   };
   const keyDown = (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") event.currentTarget.blur(); };
   const field = (key: keyof Item, label: string, className = "") => <input className={className} aria-label={label} value={String(draft[key])} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>;
-  return <article className="itemCard inlineItemCard">
+  return <article className="itemCard inlineItemCard" style={{ "--item-name-size": `${singleLineItemNameSize(draft.name)}px` } as React.CSSProperties}>
     <label className="inlineItemField"><span>カテゴリ</span>{field("category", "カテゴリ", "inlineItemCategory")}</label>
     <div className="itemCardQr"><FakeQr value={item.id}/></div>
     <label className="inlineItemField"><span>品番</span>{field("code", "品番", "inlineItemCode")}</label>
