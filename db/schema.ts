@@ -6,6 +6,7 @@ export const items = sqliteTable("items", {
   orderQty: integer("order_qty").notNull().default(1), orderPoint: text("order_point").notNull().default("1"),
   boardNumber: integer("board_number").notNull().default(0),
   location: text("location").notNull().default(""), memo: text("memo").notNull().default(""),
+  createdAt: text("created_at").notNull().default("2026-01-01T00:00:00.000Z"),
 });
 export const orders = sqliteTable("orders", {
   id: text("id").primaryKey(), itemId: text("item_id").notNull(), status: text("status").notNull(),

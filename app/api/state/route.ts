@@ -164,8 +164,9 @@ export async function POST(request: Request) {
       const id = `HZ-${crypto.randomUUID().replaceAll("-", "").slice(0, 14).toUpperCase()}`;
       const [numberRow] = await db.select({ highest: max(items.boardNumber) }).from(items);
       const boardNumber = (numberRow?.highest ?? 0) + 1;
-      await db.insert(items).values({ id, boardNumber, ...values });
-      return Response.json({ ok: true, item: serializeItem({ id, boardNumber, ...values }) });
+      const createdAt = new Date().toISOString();
+      await db.insert(items).values({ id, boardNumber, createdAt, ...values });
+      return Response.json({ ok: true, item: serializeItem({ id, boardNumber, createdAt, ...values }) });
     }
     await db.update(items).set(values).where(eq(items.id, payload.itemId!));
     const [updatedItem] = await db.select().from(items).where(eq(items.id, payload.itemId!)).limit(1);

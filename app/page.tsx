@@ -5,7 +5,7 @@ import QrScannerEngine from "qr-scanner";
 import QRCode from "qrcode";
 
 type Status = "発注待ち" | "入荷待ち" | "入荷済み" | "取消";
-type Item = { id: string; code: string; name: string; category: string; unit: string; qty: number; orderPoint: string; boardNumber: number; location: string; memo: string };
+type Item = { id: string; code: string; name: string; category: string; unit: string; qty: number; orderPoint: string; boardNumber: number; location: string; memo: string; createdAt?: string };
 type Order = Item & { orderId: string; status: Status; orderedAt: string; purchaser: string; orderNote: string };
 type AccessAccount = { email: string; name: string; status: "pending" | "approved" | "rejected"; requestedAt: string; updatedAt: string; lastSeenAt: string };
 type AccessState = { status: "loading" | "signed_out" | "pending" | "approved" | "rejected"; isOwner: boolean; user?: { email: string; name: string }; accounts: AccessAccount[] };
@@ -36,6 +36,7 @@ export default function Home() {
   const [orders, setOrders] = useState(initialOrders);
   const [items, setItems] = useState(initialItems);
   const [query, setQuery] = useState("");
+  const [itemSort, setItemSort] = useState<"newest" | "oldest" | "code" | "name">("newest");
   const [settings, setSettings] = useState(defaultSettings);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [settingsNotice, setSettingsNotice] = useState("");
@@ -155,7 +156,9 @@ export default function Home() {
   }, [ipadDevice, settings.ipadFullscreen]);
 
   const filtered = useMemo(() => orders.filter((order) => matchesSearch(query, [order.id, order.orderId, order.code, order.name, order.category, order.purchaser, order.memo, order.orderNote, order.status])), [orders, query]);
-  const filteredItems = useMemo(() => items.filter((item) => matchesSearch(query, [item.id, item.code, item.name, item.category, item.memo, item.unit])), [items, query]);
+  const filteredItems = useMemo(() => items
+    .filter((item) => matchesSearch(query, [item.id, item.code, item.name, item.category, item.memo, item.unit]))
+    .sort((a, b) => compareItems(a, b, itemSort)), [items, query, itemSort]);
   const counts = (status: Status) => filtered.filter((o) => o.status === status).length;
   const openTab = (id: string) => {
     if (id === "scan") { setScanOpen(true); return; }
@@ -357,7 +360,7 @@ export default function Home() {
         {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
         {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="すべての履歴" />}
 
-        {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><label className="search stickyItemSearch">⌕<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="品番・品名・カテゴリで検索" aria-label="品番・品名・カテゴリで検索" /></label><button className="outline" onClick={() => void startQrBoardPrint()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{filteredItems.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.memo}`} item={item} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div>{printRequested && <div className="integratedPrintBoards"><QrBoards items={printItems} columns={settings.boardColumns} rows={settings.boardRows} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} qrSources={printQrSources} /></div>}</section>}
+        {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><label className="search stickyItemSearch">⌕<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="品番・品名・カテゴリで検索" aria-label="品番・品名・カテゴリで検索" /></label><label className="itemSortControl"><span>並び順</span><select value={itemSort} onChange={(event) => setItemSort(event.target.value as typeof itemSort)} aria-label="品目の並び順"><option value="newest">新着順</option><option value="oldest">登録が古い順</option><option value="code">品番順</option><option value="name">品名順</option></select></label><button className="outline" onClick={() => void startQrBoardPrint()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{filteredItems.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.memo}`} item={item} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div>{printRequested && <div className="integratedPrintBoards"><QrBoards items={printItems} columns={settings.boardColumns} rows={settings.boardRows} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} qrSources={printQrSources} /></div>}</section>}
       </main>
       {ipadDevice && settings.ipadFullscreen && <div className="ipadFullscreenControls"><button onClick={() => setSettingsOpen(true)}>⚙ 詳細設定</button><button onClick={() => { const next = { ...settings, ipadFullscreen: false }; setSettings(next); void persistSettings(next).then(() => { setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); }).catch(showRequestError); }}>全画面を解除</button></div>}
       {settingsNotice && <div className="settingsToast" role="status">{settingsNotice}</div>}
@@ -669,6 +672,16 @@ function matchesSearch(query: string, values: Array<string | number | null | und
   if (terms.length === 0) return true;
   const searchable = normalizeSearch(values.filter((value) => value !== null && value !== undefined).join(" "));
   return terms.every((term) => searchable.includes(term));
+}
+
+function compareItems(a: Item, b: Item, sort: "newest" | "oldest" | "code" | "name") {
+  if (sort === "code") return a.code.localeCompare(b.code, "ja", { numeric: true, sensitivity: "base" }) || a.boardNumber - b.boardNumber;
+  if (sort === "name") return a.name.localeCompare(b.name, "ja", { numeric: true, sensitivity: "base" }) || a.boardNumber - b.boardNumber;
+  const aDate = a.createdAt ?? "2026-01-01T00:00:00.000Z";
+  const bDate = b.createdAt ?? "2026-01-01T00:00:00.000Z";
+  return sort === "oldest"
+    ? aDate.localeCompare(bDate) || a.boardNumber - b.boardNumber
+    : bDate.localeCompare(aDate) || b.boardNumber - a.boardNumber;
 }
 
 function isIPhone() {
