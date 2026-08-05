@@ -657,7 +657,7 @@ function OrderEditModal({ order, close, save }: { order: Order; close: () => voi
   const [saving, setSaving] = useState(false);
   const quantity = Number(quantityText);
   const quantityValid = /^\d+$/.test(quantityText) && Number.isSafeInteger(quantity) && quantity >= 1 && quantity <= 10_000;
-  const requiredValid = Boolean(draft.code.trim() && draft.name.trim() && draft.unit.trim() && draft.orderPoint.trim() && draft.purchaser.trim());
+  const requiredValid = Boolean(String(draft.code).trim() && String(draft.name).trim() && String(draft.unit).trim() && String(draft.orderPoint).trim() && String(draft.purchaser).trim());
   const update = <K extends keyof Order>(key: K, value: Order[K]) => setDraft((current) => ({ ...current, [key]: value }));
   const submit = async () => {
     if (!quantityValid || !requiredValid || saving) return;
