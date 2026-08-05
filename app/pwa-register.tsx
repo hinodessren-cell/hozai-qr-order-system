@@ -7,7 +7,7 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 };
 
-const APP_VERSION = "10.6";
+const APP_VERSION = "10.7";
 
 export default function PwaRegister() {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);

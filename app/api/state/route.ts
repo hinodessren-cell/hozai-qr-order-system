@@ -125,6 +125,16 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
+  if (payload.action === "order-update") {
+    if (!payload.orderId) return badRequest("発注IDが必要です。");
+    const quantity = payload.quantity ?? 1;
+    if (!Number.isSafeInteger(quantity) || quantity < 1 || quantity > 10_000) return badRequest("発注数量は1～10000の整数で指定してください。");
+    const purchaser = payload.purchaser?.trim().slice(0, 100) || "担当者";
+    const orderNote = payload.orderNote?.trim().slice(0, 500) || "";
+    await db.update(orders).set({ quantity, purchaser, orderNote, updatedAt: new Date().toISOString() }).where(eq(orders.id, payload.orderId));
+    return Response.json({ ok: true });
+  }
+
   if (payload.action === "settings") {
     if (!payload.settings || Array.isArray(payload.settings)) return badRequest("設定オブジェクトが必要です。");
     for (const [key, value] of Object.entries(payload.settings)) await db.insert(appSettings).values({ key, value: JSON.stringify(value) }).onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(value) } });

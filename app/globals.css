@@ -195,6 +195,7 @@ button:disabled{cursor:wait;opacity:.68}
   .printItemCards .numberWithUnit .inlineItemUnit{width:8mm!important;font-size:6.5pt!important}
 }
 .orderModal textarea{width:100%;min-height:92px;padding:12px;border:1px solid var(--line);background:#faf9f6;font:inherit;resize:vertical}
+.orderEditModal{width:min(620px,100%)}.orderEditModal label{margin-top:12px}.orderEditStatus{background:#eef2f6;color:#314159;font-size:12px;padding:9px 11px}
 .historyOrderNote{grid-column:1/-1;margin:4px 0 0!important;color:#4d5968!important;font-size:11px!important;line-height:1.45}
 .printMenuDots,.printOrderButton{display:none}
 @media print{

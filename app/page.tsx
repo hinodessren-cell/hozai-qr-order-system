@@ -48,6 +48,7 @@ export default function Home() {
   const [printQrSources, setPrintQrSources] = useState<Record<string, string>>({});
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState<Item | "new" | null>(null);
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
   const [ipadDevice, setIpadDevice] = useState(false);
   const [pushPublicKey, setPushPublicKey] = useState("");
@@ -279,6 +280,24 @@ export default function Home() {
       showRequestError(error);
     }
   }
+
+  async function updateExistingOrder(updated: Order) {
+    const current = orders.find((order) => order.orderId === updated.orderId);
+    if (!current) return;
+    const item = items.find((row) => row.id === updated.id);
+    const itemChanged = item && ["code", "name", "category", "unit", "orderPoint", "memo"].some((key) => String(item[key as keyof Item]) !== String(updated[key as keyof Item]));
+    setOrders((rows) => rows.map((order) => order.orderId === updated.orderId ? updated : order));
+    try {
+      if (itemChanged) await updateBoardItem({ ...item!, code: updated.code, name: updated.name, category: updated.category, unit: updated.unit, orderPoint: updated.orderPoint, memo: updated.memo });
+      await postState({ action: "order-update", orderId: updated.orderId, quantity: updated.qty, purchaser: updated.purchaser, orderNote: updated.orderNote });
+      setEditingOrder(null);
+      setSettingsNotice("✓ 発注内容を保存しました");
+      window.setTimeout(() => setSettingsNotice(""), 2400);
+    } catch (error) {
+      setOrders((rows) => rows.map((order) => order.orderId === current.orderId ? current : order));
+      showRequestError(error);
+    }
+  }
   async function updateBoardItem(updated: Item) {
     const previous = items.find((item) => item.id === updated.id);
     setItems((current) => current.map((item) => item.id === updated.id ? updated : item));
@@ -387,11 +406,11 @@ export default function Home() {
             <button className="stat gray" onClick={() => openStatus("入荷済み")}><small>入荷済み</small>{statusAlerts["入荷済み"] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<strong>{counts("入荷済み")}</strong><span>件</span></button>
             <article className="stat total"><small>登録品目</small><strong>{items.length.toLocaleString("ja-JP")}</strong><span>品</span></article>
           </section>
-          <OrderList orders={filtered.filter((o) => o.status === "発注待ち" || o.status === "入荷待ち").slice(0, 5)} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="進行中の発注" />
+          <OrderList orders={filtered.filter((o) => o.status === "発注待ち" || o.status === "入荷待ち").slice(0, 5)} onEdit={setEditingOrder} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="進行中の発注" />
         </>}
 
-        {tab === "orders" && <OrderBoard orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
-        {tab === "history" && <OrderList orders={filtered} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="すべての履歴" />}
+        {tab === "orders" && <OrderBoard orders={filtered} onEdit={setEditingOrder} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
+        {tab === "history" && <OrderList orders={filtered} onEdit={setEditingOrder} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} title="すべての履歴" />}
 
         {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><label className="search stickyItemSearch">⌕<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="品番・品名・カテゴリで検索" aria-label="品番・品名・カテゴリで検索" /></label><label className="itemCategoryControl"><span>カテゴリ</span><select value={itemCategory} onChange={(event) => setItemCategory(event.target.value)} aria-label="カテゴリで絞り込み"><option value="all">すべて</option>{itemCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label><output className="itemResultCount" aria-live="polite">検索結果 <strong>{filteredItems.length.toLocaleString("ja-JP")}</strong>品 ／ 全{items.length.toLocaleString("ja-JP")}品</output><label className="itemSortControl"><span>並び順</span><select value={itemSort} onChange={(event) => setItemSort(event.target.value as typeof itemSort)} aria-label="品目の並び順"><option value="newest">新着順</option><option value="oldest">登録が古い順</option><option value="code">品番順</option><option value="name">品名順</option></select></label><button className="outline" onClick={() => void startQrBoardPrint()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{paginatedItems.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.memo}`} item={item} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div><nav className="itemPagination" aria-label="品目一覧のページ"><button className="outline" disabled={currentItemPage <= 1} onClick={() => { setItemPage((page) => Math.max(1, page - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>← 前へ</button><label><span>ページ</span><select value={currentItemPage} onChange={(event) => { setItemPage(Number(event.target.value)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{Array.from({ length: itemPageCount }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1} / {itemPageCount}</option>)}</select></label><span>{filteredItems.length === 0 ? "0品" : `${((currentItemPage - 1) * itemPageSize + 1).toLocaleString("ja-JP")}～${Math.min(currentItemPage * itemPageSize, filteredItems.length).toLocaleString("ja-JP")}品を表示`}</span><button className="outline" disabled={currentItemPage >= itemPageCount} onClick={() => { setItemPage((page) => Math.min(itemPageCount, page + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>次へ →</button></nav>{printRequested && <div className="integratedPrintBoards"><QrBoards items={printItems} columns={settings.boardColumns} rows={settings.boardRows} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} qrSources={printQrSources} /></div>}</section>}
       </main>
@@ -412,21 +431,22 @@ export default function Home() {
       }} />}
 
       {editingItem && <ItemEditor item={editingItem === "new" ? null : editingItem} close={() => setEditingItem(null)} save={saveItem} />}
+      {editingOrder && <OrderEditModal order={editingOrder} close={() => setEditingOrder(null)} save={updateExistingOrder} />}
 
       {settingsOpen && <SettingsPanel settings={settings} setSettings={setSettings} pushStatus={pushStatus} enableNotifications={enableParentNotifications} access={access} updateAccountAccess={updateAccountAccess} close={() => setSettingsOpen(false)} save={async () => { await persistSettings(settings); setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); setSettingsOpen(false); }} />}
     </div>
   );
 }
 
-function OrderList({ orders, onAdvance, onCancel, onReturn, onReturnToOrdered, showMemo, title }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; onReturn: (id: string) => void; onReturnToOrdered: (id: string) => void; showMemo: boolean; title: string }) {
-  return <section className="orderSection"><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>{title}</h2></div></div><div className="orderList">{orders.map((o) => <article className="orderRow" key={o.orderId}>{o.status !== "取消" && <OptionsMenu label={`${o.name}の操作`}>{o.status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(o.orderId)}>入荷待ちへ戻す</button>}{o.status === "入荷待ち" && <button className="menuNeutral" onClick={() => onReturnToOrdered(o.orderId)}>発注待ちに戻す</button>}<button onClick={() => onCancel(o.orderId)}>発注取消</button></OptionsMenu>}<span className={`status s-${o.status}`}>{o.status}</span><div className="orderMain"><small>{o.code} ・ {o.category}</small><h3>{o.name}</h3>{showMemo && <p>{o.memo}</p>}{o.orderNote && <p className="orderNoteDisplay">発注メモ：{o.orderNote}</p>}</div><div className="orderMeta"><small>数量</small><strong>{o.qty}<i>{o.unit}</i></strong></div><div className="orderMeta"><small>発注者</small><b>{o.purchaser}</b><span>{o.orderedAt}</span></div>{o.status === "発注待ち" || o.status === "入荷待ち" ? <button className="next" onClick={() => onAdvance(o.orderId)}>{o.status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button> : <span className={`done ${o.status === "取消" ? "cancelled" : ""}`}>{o.status === "取消" ? "× 取消" : "✓ 入荷済み"}</span>}</article>)}</div></section>;
+function OrderList({ orders, onEdit, onAdvance, onCancel, onReturn, onReturnToOrdered, showMemo, title }: { orders: Order[]; onEdit: (order: Order) => void; onAdvance: (id: string) => void; onCancel: (id: string) => void; onReturn: (id: string) => void; onReturnToOrdered: (id: string) => void; showMemo: boolean; title: string }) {
+  return <section className="orderSection"><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>{title}</h2></div></div><div className="orderList">{orders.map((o) => <article className="orderRow" key={o.orderId}>{o.status !== "取消" && <OptionsMenu label={`${o.name}の操作`}><button className="menuNeutral" onClick={() => onEdit(o)}>発注内容を編集</button>{o.status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(o.orderId)}>入荷待ちへ戻す</button>}{o.status === "入荷待ち" && <button className="menuNeutral" onClick={() => onReturnToOrdered(o.orderId)}>発注待ちに戻す</button>}<button onClick={() => onCancel(o.orderId)}>発注取消</button></OptionsMenu>}<span className={`status s-${o.status}`}>{o.status}</span><div className="orderMain"><small>{o.code} ・ {o.category}</small><h3>{o.name}</h3>{showMemo && <p>{o.memo}</p>}{o.orderNote && <p className="orderNoteDisplay">発注メモ：{o.orderNote}</p>}</div><div className="orderMeta"><small>数量</small><strong>{o.qty}<i>{o.unit}</i></strong></div><div className="orderMeta"><small>発注者</small><b>{o.purchaser}</b><span>{o.orderedAt}</span></div>{o.status === "発注待ち" || o.status === "入荷待ち" ? <button className="next" onClick={() => onAdvance(o.orderId)}>{o.status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button> : <span className={`done ${o.status === "取消" ? "cancelled" : ""}`}>{o.status === "取消" ? "× 取消" : "✓ 入荷済み"}</span>}</article>)}</div></section>;
 }
 
-function OrderBoard({ orders, onAdvance, onCancel, onReturn, onReturnToOrdered, onViewStatus, statusAlerts, showMemo }: { orders: Order[]; onAdvance: (id: string) => void; onCancel: (id: string) => void; onReturn: (id: string) => void; onReturnToOrdered: (id: string) => void; onViewStatus: (status: "発注待ち" | "入荷待ち" | "入荷済み") => void; statusAlerts: Record<"発注待ち" | "入荷待ち" | "入荷済み", number>; showMemo: boolean }) {
+function OrderBoard({ orders, onEdit, onAdvance, onCancel, onReturn, onReturnToOrdered, onViewStatus, statusAlerts, showMemo }: { orders: Order[]; onEdit: (order: Order) => void; onAdvance: (id: string) => void; onCancel: (id: string) => void; onReturn: (id: string) => void; onReturnToOrdered: (id: string) => void; onViewStatus: (status: "発注待ち" | "入荷待ち" | "入荷済み") => void; statusAlerts: Record<"発注待ち" | "入荷待ち" | "入荷済み", number>; showMemo: boolean }) {
   const statuses: Exclude<Status, "取消">[] = ["発注待ち", "入荷待ち", "入荷済み"];
   return <section><div className="sectionTitle"><div><p className="eyebrow">ORDER PIPELINE</p><h2>発注・入荷状況</h2></div></div><div className="pipelineBoard">{statuses.map((status) => {
     const statusOrders = orders.filter((order) => order.status === status);
-    return <section className="pipelineColumn" key={status}><header onClick={() => onViewStatus(status)}><h3>{status}</h3>{statusAlerts[status] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<span>{statusOrders.length}</span></header><div>{statusOrders.map((order) => <article className="pipelineCard" key={order.orderId}><OptionsMenu label={`${order.name}の操作`}>{status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(order.orderId)}>入荷待ちへ戻す</button>}{status === "入荷待ち" && <button className="menuNeutral" onClick={() => onReturnToOrdered(order.orderId)}>発注待ちに戻す</button>}<button onClick={() => onCancel(order.orderId)}>発注取消</button></OptionsMenu><small>{order.code} ・ {order.category}</small><h4>{order.name}</h4>{showMemo && <p>{order.memo}</p>}{order.orderNote && <p className="orderNoteDisplay">発注メモ：{order.orderNote}</p>}<dl><div><dt>数量</dt><dd>{order.qty}{order.unit}</dd></div><div><dt>発注者</dt><dd>{order.purchaser}</dd></div></dl>{status !== "入荷済み" && <button className="next pipelineNext" onClick={() => onAdvance(order.orderId)}>{status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button>}</article>)}</div></section>;
+    return <section className="pipelineColumn" key={status}><header onClick={() => onViewStatus(status)}><h3>{status}</h3>{statusAlerts[status] > 0 && <i className="progressLamp" title="新しい進展があります"/>}<span>{statusOrders.length}</span></header><div>{statusOrders.map((order) => <article className="pipelineCard" key={order.orderId}><OptionsMenu label={`${order.name}の操作`}><button className="menuNeutral" onClick={() => onEdit(order)}>発注内容を編集</button>{status === "入荷済み" && <button className="menuNeutral" onClick={() => onReturn(order.orderId)}>入荷待ちへ戻す</button>}{status === "入荷待ち" && <button className="menuNeutral" onClick={() => onReturnToOrdered(order.orderId)}>発注待ちに戻す</button>}<button onClick={() => onCancel(order.orderId)}>発注取消</button></OptionsMenu><small>{order.code} ・ {order.category}</small><h4>{order.name}</h4>{showMemo && <p>{order.memo}</p>}{order.orderNote && <p className="orderNoteDisplay">発注メモ：{order.orderNote}</p>}<dl><div><dt>数量</dt><dd>{order.qty}{order.unit}</dd></div><div><dt>発注者</dt><dd>{order.purchaser}</dd></div></dl>{status !== "入荷済み" && <button className="next pipelineNext" onClick={() => onAdvance(order.orderId)}>{status === "発注待ち" ? "入荷待ちへ" : "入荷済みにする"} →</button>}</article>)}</div></section>;
   })}</div></section>;
 }
 
@@ -629,6 +649,34 @@ function OrderModal({ item, history, close, save, submit }: { item: Item; histor
     catch { setSubmitting(false); }
   };
   return <div className="modalBackdrop" onClick={close}><section className="orderModal" onClick={(e) => e.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">ORDER ITEM</p><label className="orderEditableName">品名（必須）<input value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} maxLength={200}/></label><label className="orderEditableCode">品番（必須）<input value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} maxLength={100}/><span>{item.category}</span></label><label>発注点<input value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: event.target.value })} maxLength={100}/></label><dl><div><dt>備考</dt><dd>{item.memo}</dd></div></dl>{history.length > 0 && <section className="previousOrders"><h3>前回までの発注履歴</h3>{history.slice(0, 3).map((order, index) => <article key={order.orderId}><div><b>{index === 0 ? "前回" : `${index + 1}回前`}</b><span>{formatOrderDate(order.orderedAt)}</span></div><strong>{order.qty}{order.unit}</strong><small>{order.purchaser} ・ {order.status}</small>{order.orderNote && <p className="historyOrderNote">発注メモ：{order.orderNote}</p>}</article>)}</section>}<label>発注者名（必須）<input autoFocus value={purchaser} onChange={(event) => setPurchaser(event.target.value)} placeholder="氏名を入力" maxLength={100}/></label><label>発注用メモ（任意）<textarea className="orderNoteInput" value={orderNote} onChange={(event) => setOrderNote(event.target.value)} placeholder="納期・購入先・連絡事項など" maxLength={500}/></label><label>発注数量<div className="quantity"><button aria-label="数量を減らす" onClick={() => setQuantityText(String(Math.max(1, (Number(quantityText) || 1) - 1)))}>−</button><input type="number" min="1" max="10000" value={quantityText} onChange={(event) => { if (/^\d*$/.test(event.target.value)) setQuantityText(event.target.value); }}/><span>{item.unit}</span><button aria-label="数量を増やす" onClick={() => setQuantityText(String(Math.min(10_000, (Number(quantityText) || 0) + 1)))}>＋</button></div></label><button className="outline wide" disabled={savingOnly || submitting || !quantityValid || !draft.code.trim() || !draft.name.trim()} onClick={() => void saveOnly()}>{savingOnly ? "保存中…" : "変更だけ保存"}</button><button className="primary wide" disabled={submitting || savingOnly || !quantityValid || !purchaser.trim() || !draft.code.trim() || !draft.name.trim()} onClick={() => void confirm()}>{submitting ? "保存・発注中…" : "この内容で発注する"}</button></section></div>;
+}
+
+function OrderEditModal({ order, close, save }: { order: Order; close: () => void; save: (order: Order) => Promise<void> }) {
+  const [draft, setDraft] = useState(order);
+  const [quantityText, setQuantityText] = useState(String(order.qty));
+  const [saving, setSaving] = useState(false);
+  const quantity = Number(quantityText);
+  const quantityValid = /^\d+$/.test(quantityText) && Number.isSafeInteger(quantity) && quantity >= 1 && quantity <= 10_000;
+  const requiredValid = Boolean(draft.code.trim() && draft.name.trim() && draft.unit.trim() && draft.orderPoint.trim() && draft.purchaser.trim());
+  const update = <K extends keyof Order>(key: K, value: Order[K]) => setDraft((current) => ({ ...current, [key]: value }));
+  const submit = async () => {
+    if (!quantityValid || !requiredValid || saving) return;
+    setSaving(true);
+    try { await save({ ...draft, qty: quantity }); }
+    finally { setSaving(false); }
+  };
+  return <div className="modalBackdrop" onClick={close}><section className="orderModal orderEditModal" onClick={(event) => event.stopPropagation()}>
+    <button className="close" onClick={close}>×</button><p className="eyebrow">EDIT ORDER</p><h2>発注内容を編集</h2>
+    <p className="orderEditStatus">状態：<b>{order.status}</b></p>
+    <label>品番（必須）<input autoFocus value={draft.code} onChange={(event) => update("code", event.target.value)} maxLength={100}/></label>
+    <label>品名（必須）<input value={draft.name} onChange={(event) => update("name", event.target.value)} maxLength={200}/></label>
+    <div className="editorTwo"><label>カテゴリ<input value={draft.category} onChange={(event) => update("category", event.target.value)} maxLength={100}/></label><label>単位（必須）<input value={draft.unit} onChange={(event) => update("unit", event.target.value)} maxLength={30}/></label></div>
+    <div className="editorTwo"><label>発注数量（必須）<input type="number" min="1" max="10000" value={quantityText} onChange={(event) => { if (/^\d*$/.test(event.target.value)) setQuantityText(event.target.value); }}/></label><label>発注点（必須）<input value={draft.orderPoint} onChange={(event) => update("orderPoint", event.target.value)} maxLength={100}/></label></div>
+    <label>発注者（必須）<input value={draft.purchaser} onChange={(event) => update("purchaser", event.target.value)} maxLength={100}/></label>
+    <label>備考<textarea value={draft.memo} onChange={(event) => update("memo", event.target.value)} maxLength={500}/></label>
+    <label>発注用メモ<textarea className="orderNoteInput" value={draft.orderNote} onChange={(event) => update("orderNote", event.target.value)} maxLength={500}/></label>
+    <button className="primary wide" disabled={saving || !quantityValid || !requiredValid} onClick={() => void submit()}>{saving ? "保存中…" : "変更を保存"}</button>
+  </section></div>;
 }
 
 function formatOrderDate(value: string) {
