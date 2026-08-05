@@ -105,7 +105,7 @@ export default function Home() {
       if (!active || !data) return;
       if (data?.items?.length) setItems(data.items);
       if (Array.isArray(data?.orders)) {
-        const incoming = data.orders as Order[];
+        const incoming = (data.orders as Order[]).map((order) => ({ ...order, orderedAt: formatOrderDate(order.orderedAt) }));
         if (seenOrderIds.current && notificationEnabled.current) {
           const fresh = incoming.filter((order) => order.status === "発注待ち" && !seenOrderIds.current!.has(order.orderId));
           if ("Notification" in window && Notification.permission === "granted") {
@@ -233,6 +233,7 @@ export default function Home() {
     // This timestamp is created only after the user confirms an order.
     // eslint-disable-next-line react-hooks/purity
     const order = { ...item, qty, orderId: `O-${Date.now()}`, status: "発注待ち" as Status, orderedAt: new Date().toISOString(), purchaser: purchaser.trim(), orderNote: orderNote.trim() };
+    order.orderedAt = formatOrderDate(order.orderedAt);
     setOrders((current) => [order, ...current]);
     setSelectedItem(null); openTab("orders");
     try {
@@ -750,8 +751,9 @@ function OrderEditModal({ order, close, save }: { order: Order; close: () => voi
 }
 
 function formatOrderDate(value: string) {
+  if (/^\d{4}\/\d{2}\/\d{2} \d{2}:\d{2}$/.test(value)) return value;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 function ItemEditor({ item, close, save }: { item: Item | null; close: () => void; save: (item: Item, isNew: boolean) => Promise<void> }) {
