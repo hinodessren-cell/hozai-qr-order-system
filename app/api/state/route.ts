@@ -135,6 +135,12 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
+  if (payload.action === "order-delete") {
+    if (!payload.orderId) return badRequest("発注IDが必要です。");
+    await db.delete(orders).where(eq(orders.id, payload.orderId));
+    return Response.json({ ok: true });
+  }
+
   if (payload.action === "settings") {
     if (!payload.settings || Array.isArray(payload.settings)) return badRequest("設定オブジェクトが必要です。");
     for (const [key, value] of Object.entries(payload.settings)) await db.insert(appSettings).values({ key, value: JSON.stringify(value) }).onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(value) } });
