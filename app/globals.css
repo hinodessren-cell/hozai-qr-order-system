@@ -297,3 +297,4 @@ button:disabled{cursor:wait;opacity:.68}
 @media(min-width:1101px){.sidebar nav .nav-scan{display:none!important}}
 @media print{.printItemCards .inlineItemCard>.inlineItemField:first-child>span:first-child{white-space:nowrap!important;font-size:6pt!important;letter-spacing:-.08em!important}.printItemCards .inlineItemNumbers{align-items:center!important}.printItemCards .inlineItemNumbers label,.printItemCards .inlineItemNumbers .orderPointField{height:4mm!important;min-height:4mm!important;align-items:center!important;line-height:1!important}.printItemCards .inlineItemNumbers .numberWithUnit{height:4mm!important;display:inline-flex!important;align-items:center!important;line-height:1!important}.printItemCards .inlineItemNumbers .numberWithUnit strong,.printItemCards .inlineItemNumbers .fixedUnit{line-height:1!important}}
 .inlineItemName{color:#0b6b57!important}
+.itemsWorkspace>.sectionTitle{display:none}
