@@ -538,28 +538,45 @@ function singleLineOrderPointSize(value: string) {
 
 function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise<void> }) {
   const [draft, setDraft] = useState(item);
+  const [quantityText, setQuantityText] = useState(String(item.qty));
   const commit = async () => {
     if (JSON.stringify(draft) === JSON.stringify(item)) return;
     try { await save(draft); } catch { setDraft(item); }
   };
   const keyDown = (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") event.currentTarget.blur(); };
+  const commitQuantity = async () => {
+    const quantity = Number(quantityText);
+    if (!/^\d+$/.test(quantityText) || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 10_000) { setQuantityText(String(draft.qty)); return; }
+    const next = { ...draft, qty: quantity };
+    setDraft(next);
+    if (quantity !== item.qty) try { await save(next); } catch { setDraft(item); setQuantityText(String(item.qty)); }
+  };
   return <article className="board"><span className="printMenuDots">•••</span><FakeQr value={item.id}/><div className="inlineBoardFields">
     <label className="printBoardField"><span>カテゴリ</span><input className="inlineCategory" aria-label="カテゴリ" value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
     <label className="printBoardField"><span>品番</span><input className="inlineCode" aria-label="品番" value={draft.code} onChange={(event) => setDraft({ ...draft, code: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
     <div className="boardTitleLine"><label className="boardNameField"><span>品名</span><input className="inlineName" aria-label="品名" value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><strong className="boardNumber">No.{String(item.boardNumber).padStart(3, "0")}</strong></div>
     <label className="printBoardField printBoardMemo"><span>備考</span><input aria-label="備考" value={draft.memo} onChange={(event) => setDraft({ ...draft, memo: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label>
-    <div className="inlineMeta"><label>発注数量 <input className="inlineQty" aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/><input className="inlineUnit" aria-label="単位" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label className="orderPointField">発注点 <input className="orderPointTextInput" aria-label="発注点" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label></div>
+    <div className="inlineMeta"><label>発注数量 <input className="inlineQty" aria-label="発注数量" type="number" min="1" max="10000" value={quantityText} onChange={(event) => { if (/^\d*$/.test(event.target.value)) setQuantityText(event.target.value); }} onBlur={() => void commitQuantity()} onKeyDown={keyDown}/><input className="inlineUnit" aria-label="単位" value={draft.unit} onChange={(event) => setDraft({ ...draft, unit: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label><label className="orderPointField">発注点 <input className="orderPointTextInput" aria-label="発注点" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></label></div>
     <div className="printOrderButton">発注する</div>
   </div></article>;
 }
 
 function InlineItemCard({ item, save, edit, order }: { item: Item; save: (item: Item) => Promise<void>; edit: () => void; order: () => void }) {
   const [draft, setDraft] = useState(item);
+  const [quantityText, setQuantityText] = useState(String(item.qty));
+  useEffect(() => { setQuantityText(String(item.qty)); }, [item.qty]);
   const commit = async () => {
     if (JSON.stringify(draft) === JSON.stringify(item)) return;
     try { await save(draft); } catch { setDraft(item); }
   };
   const keyDown = (event: React.KeyboardEvent<HTMLInputElement>) => { if (event.key === "Enter") event.currentTarget.blur(); };
+  const commitQuantity = async () => {
+    const quantity = Number(quantityText);
+    if (!/^\d+$/.test(quantityText) || !Number.isSafeInteger(quantity) || quantity < 1 || quantity > 10_000) { setQuantityText(String(draft.qty)); return; }
+    const next = { ...draft, qty: quantity };
+    setDraft(next);
+    if (quantity !== item.qty) try { await save(next); } catch { setDraft(item); setQuantityText(String(item.qty)); }
+  };
   const field = (key: keyof Item, label: string, className = "") => <input className={className} aria-label={label} value={String(draft[key])} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>;
   return <article className="itemCard inlineItemCard">
     <label className="inlineItemField"><span>カテゴリ</span>{field("category", "カテゴリ", "inlineItemCategory")}</label>
@@ -567,7 +584,7 @@ function InlineItemCard({ item, save, edit, order }: { item: Item; save: (item: 
     <label className="inlineItemField"><span>品番</span>{field("code", "品番", "inlineItemCode")}</label>
     <label className="inlineItemField"><span>品名</span>{field("name", "品名", "inlineItemName")}</label>
     <label className="inlineItemMemoField"><span>備考</span>{field("memo", "備考", "inlineItemMemo")}</label>
-    <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><input aria-label="発注数量" type="number" min="1" value={draft.qty} onChange={(event) => setDraft({ ...draft, qty: Math.max(1, Number(event.target.value) || 1) })} onBlur={() => void commit()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><input className="orderPointTextInput" style={{ fontSize: `${singleLineOrderPointSize(draft.orderPoint)}px` }} aria-label="発注点" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></span></label></div>
+    <div className="inlineItemNumbers"><label><span className="numberLabel">発注数量:</span><span className="numberWithUnit"><input aria-label="発注数量" type="number" min="1" max="10000" value={quantityText} onChange={(event) => { if (/^\d*$/.test(event.target.value)) setQuantityText(event.target.value); }} onBlur={() => void commitQuantity()} onKeyDown={keyDown}/>{field("unit", "単位", "inlineItemUnit")}</span></label><label className="orderPointField"><span className="numberLabel">発注点:</span><span className="numberWithUnit"><input className="orderPointTextInput" style={{ fontSize: `${singleLineOrderPointSize(draft.orderPoint)}px` }} aria-label="発注点" value={draft.orderPoint} onChange={(event) => setDraft({ ...draft, orderPoint: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/></span></label></div>
     <OptionsMenu label={`${item.name}の操作`}><button onClick={edit}>詳細編集</button></OptionsMenu>
     <div className="itemActions"><button className="primary" onClick={order}>発注する</button></div>
   </article>;
@@ -740,14 +757,17 @@ function formatOrderDate(value: string) {
 function ItemEditor({ item, close, save }: { item: Item | null; close: () => void; save: (item: Item, isNew: boolean) => Promise<void> }) {
   const isNew = !item;
   const [draft, setDraft] = useState<Item>(item ?? { id: "", code: "", name: "", category: "", unit: "個", qty: 1, orderPoint: "1", boardNumber: 0, location: "", memo: "" });
+  const [quantityText, setQuantityText] = useState(String(item?.qty ?? 1));
   const [saving, setSaving] = useState(false);
+  const quantity = Number(quantityText);
+  const quantityValid = /^\d+$/.test(quantityText) && Number.isSafeInteger(quantity) && quantity >= 1 && quantity <= 10_000;
   const update = (key: keyof Item, value: string | number) => setDraft((current) => ({ ...current, [key]: value }));
   const submit = async () => {
-    if (!draft.code.trim() || !draft.name.trim()) return;
+    if (!draft.code.trim() || !draft.name.trim() || !quantityValid) return;
     setSaving(true);
-    try { await save(draft, isNew); } catch (error) { showRequestError(error); setSaving(false); }
+    try { await save({ ...draft, qty: quantity }, isNew); } catch (error) { showRequestError(error); setSaving(false); }
   };
-  return <div className="modalBackdrop" onClick={close}><section className="orderModal itemEditor" onClick={(event) => event.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">MASTER ITEM</p><h2>{isNew ? "新規品目登録" : "品目を編集"}</h2><label>品番（必須）<input autoFocus value={draft.code} onChange={(event) => update("code", event.target.value)} /></label><label>品名（必須）<input value={draft.name} onChange={(event) => update("name", event.target.value)} /></label><label>カテゴリ<input value={draft.category} onChange={(event) => update("category", event.target.value)} /></label><div className="editorTwo"><label>発注数量<input type="number" min="1" max="10000" value={draft.qty} onChange={(event) => update("qty", Math.max(1, Number(event.target.value) || 1))} /></label><label>発注点<input value={draft.orderPoint} onChange={(event) => update("orderPoint", event.target.value)} maxLength={100} /></label></div><label>単位<input value={draft.unit} onChange={(event) => update("unit", event.target.value)} /></label><label>備考<textarea value={draft.memo} onChange={(event) => update("memo", event.target.value)} /></label><button className="primary wide" disabled={saving || !draft.code.trim() || !draft.name.trim()} onClick={() => void submit()}>{saving ? "保存中…" : isNew ? "この品目を登録" : "変更を保存"}</button></section></div>;
+  return <div className="modalBackdrop" onClick={close}><section className="orderModal itemEditor" onClick={(event) => event.stopPropagation()}><button className="close" onClick={close}>×</button><p className="eyebrow">MASTER ITEM</p><h2>{isNew ? "新規品目登録" : "品目を編集"}</h2><label>品番（必須）<input autoFocus value={draft.code} onChange={(event) => update("code", event.target.value)} /></label><label>品名（必須）<input value={draft.name} onChange={(event) => update("name", event.target.value)} /></label><label>カテゴリ<input value={draft.category} onChange={(event) => update("category", event.target.value)} /></label><div className="editorTwo"><label>発注数量<input type="number" min="1" max="10000" value={quantityText} onChange={(event) => { if (/^\d*$/.test(event.target.value)) setQuantityText(event.target.value); }} /></label><label>発注点<input value={draft.orderPoint} onChange={(event) => update("orderPoint", event.target.value)} maxLength={100} /></label></div><label>単位<input value={draft.unit} onChange={(event) => update("unit", event.target.value)} /></label><label>備考<textarea value={draft.memo} onChange={(event) => update("memo", event.target.value)} /></label><button className="primary wide" disabled={saving || !draft.code.trim() || !draft.name.trim() || !quantityValid} onClick={() => void submit()}>{saving ? "保存中…" : isNew ? "この品目を登録" : "変更を保存"}</button></section></div>;
 }
 
 function AccessGate({ access, refresh }: { access: AccessState; refresh: () => Promise<void> }) {
