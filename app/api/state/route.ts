@@ -141,6 +141,13 @@ export async function POST(request: Request) {
     return Response.json({ ok: true });
   }
 
+  if (payload.action === "orders-delete") {
+    const orderIds = Array.isArray(payload.orderIds) ? [...new Set(payload.orderIds.filter((id): id is string => typeof id === "string" && id.length > 0))] : [];
+    if (orderIds.length === 0 || orderIds.length > 1_000) return badRequest("削除する発注履歴を1～1000件で指定してください。");
+    await db.delete(orders).where(inArray(orders.id, orderIds));
+    return Response.json({ ok: true });
+  }
+
   if (payload.action === "settings") {
     if (!payload.settings || Array.isArray(payload.settings)) return badRequest("設定オブジェクトが必要です。");
     for (const [key, value] of Object.entries(payload.settings)) await db.insert(appSettings).values({ key, value: JSON.stringify(value) }).onConflictDoUpdate({ target: appSettings.key, set: { value: JSON.stringify(value) } });
