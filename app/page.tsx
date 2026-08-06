@@ -46,6 +46,7 @@ export default function Home() {
   const [printRequested, setPrintRequested] = useState(false);
   const [printItems, setPrintItems] = useState<Item[]>([]);
   const [printQrSources, setPrintQrSources] = useState<Record<string, string>>({});
+  const [printQueueIds, setPrintQueueIds] = useState<string[]>([]);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [editingItem, setEditingItem] = useState<Item | "new" | null>(null);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
@@ -73,6 +74,12 @@ export default function Home() {
   }, []);
 
   useEffect(() => { void refreshAccess(); }, [refreshAccess]);
+  useEffect(() => {
+    const refreshQueue = () => setPrintQueueIds(readPrintQueue());
+    refreshQueue();
+    window.addEventListener("print-queue-change", refreshQueue);
+    return () => window.removeEventListener("print-queue-change", refreshQueue);
+  }, []);
   useEffect(() => {
     let frame = 0;
     const refitAll = () => {
@@ -190,6 +197,7 @@ export default function Home() {
   const itemPageCount = Math.max(1, Math.ceil(filteredItems.length / itemPageSize));
   const currentItemPage = Math.min(itemPage, itemPageCount);
   const paginatedItems = filteredItems.slice((currentItemPage - 1) * itemPageSize, currentItemPage * itemPageSize);
+  const printQueueItems = printQueueIds.map((id) => items.find((item) => item.id === id)).filter((item): item is Item => Boolean(item));
   useEffect(() => { setItemPage(1); }, [query, itemCategory, itemSort]);
   useEffect(() => { if (itemPage > itemPageCount) setItemPage(itemPageCount); }, [itemPage, itemPageCount]);
   const counts = (status: Status) => filtered.filter((o) => o.status === status).length;
@@ -394,13 +402,21 @@ export default function Home() {
       window.alert("印刷できる品目がありません。検索条件をご確認ください。");
       return;
     }
+    await printSelectedBoards(targetItems);
+  }
+
+  async function printSelectedBoards(targetItems: Item[], resetQueue = false) {
     setPrintItems(targetItems);
-    const qrEntries = targetItems.map((item) => [item.id, `/qr/${encodeURIComponent(item.id)}.svg`] as const);
-    setPrintQrSources(Object.fromEntries(qrEntries));
+    setPrintQrSources(Object.fromEntries(targetItems.map((item) => [item.id, `/qr/${encodeURIComponent(item.id)}.svg`] as const)));
     setPrintRequested(true);
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(() => resolve())));
-    await printQrBoards();
+    const printed = await printQrBoards();
     setPrintRequested(false);
+    if (printed && resetQueue) {
+      writePrintQueue([]);
+      setSettingsNotice("✓ 印刷が完了したため、部分印刷キューをリセットしました");
+      window.setTimeout(() => setSettingsNotice(""), 3000);
+    }
   }
 
   async function updateAccountAccess(email: string, action: "approve" | "reject" | "revoke") {
@@ -414,7 +430,7 @@ export default function Home() {
 
   const nav = [
     ["dashboard", "概要", "▦"], ["scan", "カメラ", "◎"], ["orders", "発注管理", "⇄"],
-    ["history", "履歴", "◷"], ["items", "品目・看板", "▤"],
+    ["history", "履歴", "◷"], ["items", "品目・看板", "▤"], ["partialPrint", "部分印刷", "☑"],
   ];
   const pendingAccessCount = access.isOwner ? access.accounts.filter((account) => account.status === "pending").length : 0;
 
@@ -424,12 +440,12 @@ export default function Home() {
     <div className={`app density-${settings.density}${ipadDevice && settings.ipadFullscreen ? " ipadFullscreen" : ""}`} style={{ "--accent": settings.accent } as React.CSSProperties}>
       <aside className="sidebar">
         <div className="brand" aria-label="MATERIAL ORDER CONTROL"><span className="brandLogo"/><div className="brandControl"><span>MATERIAL ORDER CONTROL</span><strong>{settings.siteName}</strong></div></div>
-        <nav>{nav.map(([id, label, icon]) => <button key={id} className={`${tab === id ? "active " : ""}nav-${id}`} onClick={() => openTab(id)}><span>{icon}</span><span className="navLabel">{label}</span>{id === "orders" && unreadOrders > 0 && <b className="notificationBadge" aria-label={`未確認 ${unreadOrders}件`}>{unreadOrders > 99 ? "99+" : unreadOrders}</b>}</button>)}</nav>
+        <nav>{nav.map(([id, label, icon]) => <button key={id} className={`${tab === id ? "active " : ""}nav-${id}`} onClick={() => openTab(id)}><span>{icon}</span><span className="navLabel">{label}</span>{id === "orders" && unreadOrders > 0 && <b className="notificationBadge" aria-label={`未確認 ${unreadOrders}件`}>{unreadOrders > 99 ? "99+" : unreadOrders}</b>}{id === "partialPrint" && printQueueIds.length > 0 && <b className="notificationBadge printQueueBadge" aria-label={`印刷キュー ${printQueueIds.length}品`}>{printQueueIds.length > 99 ? "99+" : printQueueIds.length}</b>}</button>)}</nav>
         <button className="settingsButton" onClick={() => setSettingsOpen(true)}>⚙ 詳細設定{pendingAccessCount > 0 && <b className="notificationBadge settingsNotificationBadge" aria-label={`アクセス許可申請 ${pendingAccessCount}件`}>{pendingAccessCount > 99 ? "99+" : pendingAccessCount}</b>}</button>
       </aside>
 
       <main>
-        <header><div><p className="eyebrow">MATERIALS / LIVE</p><h1>{nav.find((n) => n[0] === tab)?.[1] ?? "概要"}</h1></div><div className="headerActions">{tab !== "items" && <label className="search">⌕<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="品番・品名・担当者で検索" /></label>}</div></header>
+        <header><div><p className="eyebrow">MATERIALS / LIVE</p><h1>{nav.find((n) => n[0] === tab)?.[1] ?? "概要"}</h1></div><div className="headerActions">{tab !== "items" && tab !== "partialPrint" && <label className="search">⌕<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="品番・品名・担当者で検索" /></label>}</div></header>
 
         {tab === "dashboard" && <>
           <section className="stats">
@@ -443,9 +459,11 @@ export default function Home() {
 
         {tab === "orders" && <OrderBoard orders={filtered} onEdit={setEditingOrder} onAdvance={advance} onCancel={cancelOrder} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} onViewStatus={openStatus} statusAlerts={statusAlerts} showMemo={settings.showMemo} />}
         {tab === "history" && <HistoryOrderList key={query} orders={filtered} onEdit={setEditingOrder} onAdvance={advance} onCancel={cancelOrder} onDelete={deleteOrderHistory} onDeleteMany={deleteOrderHistories} onReturn={returnToWaiting} onReturnToOrdered={returnToOrdered} showMemo={settings.showMemo} />}
+        {tab === "partialPrint" && <PartialPrintQueue items={printQueueItems} updateQueue={writePrintQueue} print={() => void printSelectedBoards(printQueueItems, true)} />}
 
         {tab === "items" && <section className="itemsWorkspace"><div className="sectionTitle"><div><p className="eyebrow">MASTER ITEMS / QR KANBAN</p><h2>品目・QR看板</h2><span className="editHint">文字をタップすると、その場で入力できます。同じ品目情報からQR看板を印刷できます。</span></div></div><div className="sectionTitleActions stickyItemActions"><label className="search stickyItemSearch">⌕<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="品番・品名・カテゴリで検索" aria-label="品番・品名・カテゴリで検索" /></label><label className="itemCategoryControl"><span>カテゴリ</span><select value={itemCategory} onChange={(event) => setItemCategory(event.target.value)} aria-label="カテゴリで絞り込み"><option value="all">すべて</option>{itemCategories.map((category) => <option key={category} value={category}>{category}</option>)}</select></label><output className="itemResultCount" aria-live="polite">検索結果 <strong>{filteredItems.length.toLocaleString("ja-JP")}</strong>品 ／ 全{items.length.toLocaleString("ja-JP")}品</output><label className="itemSortControl"><span>並び順</span><select value={itemSort} onChange={(event) => setItemSort(event.target.value as typeof itemSort)} aria-label="品目の並び順"><option value="newest">新着順</option><option value="oldest">登録が古い順</option><option value="code">品番順</option><option value="name">品名順</option></select></label><button className="outline" onClick={() => void startQrBoardPrint()}>QR看板を印刷</button><button className="primary addItemButton" onClick={() => setEditingItem("new")}>＋ 新規品目</button></div><div className="itemGrid" style={{ gridTemplateColumns: `repeat(${settings.cardColumns}, minmax(0, 1fr))` }}>{paginatedItems.map((item) => <InlineItemCard key={`${item.id}:${item.code}:${item.name}:${item.category}:${item.qty}:${item.orderPoint}:${item.unit}:${item.memo}`} item={item} save={updateBoardItem} edit={() => setEditingItem(item)} order={() => setSelectedItem(item)} />)}</div><nav className="itemPagination" aria-label="品目一覧のページ"><button className="outline" disabled={currentItemPage <= 1} onClick={() => { setItemPage((page) => Math.max(1, page - 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>← 前へ</button><label><span>ページ</span><select value={currentItemPage} onChange={(event) => { setItemPage(Number(event.target.value)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>{Array.from({ length: itemPageCount }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1} / {itemPageCount}</option>)}</select></label><span>{filteredItems.length === 0 ? "0品" : `${((currentItemPage - 1) * itemPageSize + 1).toLocaleString("ja-JP")}～${Math.min(currentItemPage * itemPageSize, filteredItems.length).toLocaleString("ja-JP")}品を表示`}</span><button className="outline" disabled={currentItemPage >= itemPageCount} onClick={() => { setItemPage((page) => Math.min(itemPageCount, page + 1)); window.scrollTo({ top: 0, behavior: "smooth" }); }}>次へ →</button></nav>{printRequested && <div className="integratedPrintBoards"><QrBoards items={printItems} columns={settings.boardColumns} rows={settings.boardRows} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} qrSources={printQrSources} /></div>}</section>}
       </main>
+      {tab === "partialPrint" && printRequested && <div className="integratedPrintBoards"><QrBoards items={printItems} columns={settings.boardColumns} rows={settings.boardRows} width={settings.boardWidth} height={settings.boardHeight} save={updateBoardItem} qrSources={printQrSources} /></div>}
       {ipadDevice && settings.ipadFullscreen && <div className="ipadFullscreenControls"><button className="fullscreenSettingsButton" onClick={() => setSettingsOpen(true)}>⚙ 詳細設定{pendingAccessCount > 0 && <b className="notificationBadge settingsNotificationBadge">{pendingAccessCount > 99 ? "99+" : pendingAccessCount}</b>}</button><button onClick={() => { const next = { ...settings, ipadFullscreen: false }; setSettings(next); void persistSettings(next).then(() => { setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); }).catch(showRequestError); }}>全画面を解除</button></div>}
       {settingsNotice && <div className="settingsToast" role="status">{settingsNotice}</div>}
       {orderNotice && <div className="orderNotification" role="alert"><span>{orderNotice}</span><button onClick={() => { setOrderNotice(""); window.localStorage.removeItem("pending-order-notice"); }}>確認</button></div>}
@@ -468,6 +486,13 @@ export default function Home() {
       {settingsOpen && <SettingsPanel settings={settings} setSettings={setSettings} pushStatus={pushStatus} enableNotifications={enableParentNotifications} access={access} updateAccountAccess={updateAccountAccess} close={() => setSettingsOpen(false)} save={async () => { await persistSettings(settings); setSettingsNotice("✓ 設定を保存しました"); window.setTimeout(() => setSettingsNotice(""), 2400); setSettingsOpen(false); }} />}
     </div>
   );
+}
+
+function PartialPrintQueue({ items, updateQueue, print }: { items: Item[]; updateQueue: (ids: string[]) => void; print: () => void }) {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const toggle = (id: string) => setSelectedIds((current) => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next; });
+  const removeSelected = () => { updateQueue(items.filter((item) => !selectedIds.has(item.id)).map((item) => item.id)); setSelectedIds(new Set()); };
+  return <section className="partialPrintPage"><div className="queueSummary"><div><p className="eyebrow">PARTIAL PRINT QUEUE</p><h2>部分印刷キュー</h2><p>品目・看板でチェックした看板だけを印刷します。</p></div><strong>{items.length}<span>品</span></strong></div>{items.length === 0 ? <div className="emptyPrintQueue"><b>印刷キューは空です</b><p>品目・看板ページで必要な看板にチェックを入れてください。</p></div> : <><div className="queueActions"><button className="outline" onClick={() => setSelectedIds(new Set(items.map((item) => item.id)))}>すべて選択</button><button className="outline" disabled={selectedIds.size === 0} onClick={() => setSelectedIds(new Set())}>選択解除</button><button className="queueDelete" disabled={selectedIds.size === 0} onClick={removeSelected}>選択した{selectedIds.size}品を削除</button><button className="queueClear" onClick={() => { if (window.confirm("部分印刷キューをすべて空にしますか？")) { updateQueue([]); setSelectedIds(new Set()); } }}>キューを空にする</button><button className="primary queuePrint" onClick={print}>この{items.length}品を印刷</button></div><div className="queueList">{items.map((item) => <article key={item.id} className={selectedIds.has(item.id) ? "selected" : ""}><label><input type="checkbox" checked={selectedIds.has(item.id)} onChange={() => toggle(item.id)}/><span/></label><div><small>{item.category}</small><b>{item.name}</b><span>{item.code}</span></div><button aria-label={`${item.name}を印刷キューから削除`} onClick={() => updateQueue(items.filter((row) => row.id !== item.id).map((row) => row.id))}>×</button></article>)}</div></>}</section>;
 }
 
 function HistoryOrderList(props: Omit<React.ComponentProps<typeof OrderList>, "title" | "onDelete" | "selectedIds" | "onToggleSelect"> & { onDelete: (id: string) => void; onDeleteMany: (ids: string[]) => Promise<boolean> }) {
@@ -565,7 +590,14 @@ function InlineBoard({ item, save }: { item: Item; save: (item: Item) => Promise
 function InlineItemCard({ item, save, edit, order }: { item: Item; save: (item: Item) => Promise<void>; edit: () => void; order: () => void }) {
   const [draft, setDraft] = useState(item);
   const [quantityText, setQuantityText] = useState(String(item.qty));
+  const [queuedForPrint, setQueuedForPrint] = useState(false);
   useEffect(() => { setQuantityText(String(item.qty)); }, [item.qty]);
+  useEffect(() => {
+    const refresh = () => setQueuedForPrint(readPrintQueue().includes(item.id));
+    refresh();
+    window.addEventListener("print-queue-change", refresh);
+    return () => window.removeEventListener("print-queue-change", refresh);
+  }, [item.id]);
   const commit = async () => {
     if (JSON.stringify(draft) === JSON.stringify(item)) return;
     try { await save(draft); } catch { setDraft(item); }
@@ -579,7 +611,8 @@ function InlineItemCard({ item, save, edit, order }: { item: Item; save: (item: 
     if (quantity !== item.qty) try { await save(next); } catch { setDraft(item); setQuantityText(String(item.qty)); }
   };
   const field = (key: keyof Item, label: string, className = "") => <input className={className} aria-label={label} value={String(draft[key])} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>;
-  return <article className="itemCard inlineItemCard">
+  return <article className={`itemCard inlineItemCard${queuedForPrint ? " queuedForPrint" : ""}`}>
+    <label className="printQueueCheck"><input type="checkbox" checked={queuedForPrint} onChange={() => { const current = readPrintQueue(); writePrintQueue(queuedForPrint ? current.filter((id) => id !== item.id) : [...current, item.id]); }}/><span>{queuedForPrint ? "印刷キューに追加済み" : "部分印刷に追加"}</span></label>
     <label className="inlineItemField"><span>カテゴリ</span>{field("category", "カテゴリ", "inlineItemCategory")}</label>
     <div className="itemCardQr"><FakeQr value={item.id}/></div>
     <label className="inlineItemField"><span>品番</span>{field("code", "品番", "inlineItemCode")}</label>
@@ -858,6 +891,19 @@ function compareItems(a: Item, b: Item, sort: "newest" | "oldest" | "code" | "na
     : bDate.localeCompare(aDate) || b.boardNumber - a.boardNumber;
 }
 
+function readPrintQueue() {
+  try {
+    const value = JSON.parse(window.localStorage.getItem("partial-print-queue") ?? "[]");
+    return Array.isArray(value) ? [...new Set(value.filter((id): id is string => typeof id === "string"))] : [];
+  } catch { return []; }
+}
+
+function writePrintQueue(ids: string[]) {
+  const uniqueIds = [...new Set(ids)];
+  window.localStorage.setItem("partial-print-queue", JSON.stringify(uniqueIds));
+  window.dispatchEvent(new CustomEvent("print-queue-change", { detail: uniqueIds }));
+}
+
 function isIPhone() {
   return /iPhone/i.test(navigator.userAgent);
 }
@@ -876,7 +922,7 @@ async function printQrBoards() {
     if (images.length > 0 && incomplete.length === 0) {
       await document.fonts?.ready;
       window.print();
-      return;
+      return true;
     }
     if (!fallbackStarted && Date.now() - startedAt >= 3_000) {
       fallbackStarted = true;
@@ -885,6 +931,7 @@ async function printQrBoards() {
     await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
   }
   window.alert("QRコードの準備が完了しませんでした。通信状態を確認して、もう一度印刷してください。");
+  return false;
 }
 
 function urlBase64ToArrayBuffer(value: string) {
