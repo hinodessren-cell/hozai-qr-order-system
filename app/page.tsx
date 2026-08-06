@@ -413,9 +413,15 @@ export default function Home() {
     const printed = await printQrBoards();
     setPrintRequested(false);
     if (printed && resetQueue) {
-      writePrintQueue([]);
-      setSettingsNotice("✓ 印刷が完了したため、部分印刷キューをリセットしました");
-      window.setTimeout(() => setSettingsNotice(""), 3000);
+      const completed = window.confirm("印刷は完了しましたか？\n\n［OK］印刷完了：キューを空にする\n［キャンセル］未印刷：キューを残す");
+      if (completed) {
+        writePrintQueue([]);
+        setSettingsNotice("✓ 印刷完了を確認し、部分印刷キューをリセットしました");
+        window.setTimeout(() => setSettingsNotice(""), 3000);
+      } else {
+        setSettingsNotice("印刷キューをそのまま保持しました");
+        window.setTimeout(() => setSettingsNotice(""), 2400);
+      }
     }
   }
 
