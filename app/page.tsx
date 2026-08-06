@@ -616,8 +616,12 @@ function InlineItemCard({ item, save, edit, order }: { item: Item; save: (item: 
     setDraft(next);
     if (quantity !== item.qty) try { await save(next); } catch { setDraft(item); setQuantityText(String(item.qty)); }
   };
+  const addToPrintQueue = () => {
+    const current = readPrintQueue();
+    if (!current.includes(item.id)) writePrintQueue([...current, item.id]);
+  };
   const field = (key: keyof Item, label: string, className = "") => <input className={className} aria-label={label} value={String(draft[key])} onChange={(event) => setDraft({ ...draft, [key]: event.target.value })} onBlur={() => void commit()} onKeyDown={keyDown}/>;
-  return <article className={`itemCard inlineItemCard${queuedForPrint ? " queuedForPrint" : ""}`}>
+  return <article className={`itemCard inlineItemCard${queuedForPrint ? " queuedForPrint" : ""}`} title={queuedForPrint ? "部分印刷キューに追加済み" : "右クリックで部分印刷キューへ追加"} onContextMenu={(event) => { event.preventDefault(); addToPrintQueue(); }}>
     <label className="printQueueCheck"><input type="checkbox" checked={queuedForPrint} onChange={() => { const current = readPrintQueue(); writePrintQueue(queuedForPrint ? current.filter((id) => id !== item.id) : [...current, item.id]); }}/><span>{queuedForPrint ? "印刷キューに追加済み" : "部分印刷に追加"}</span></label>
     <label className="inlineItemField"><span>カテゴリ</span>{field("category", "カテゴリ", "inlineItemCategory")}</label>
     <div className="itemCardQr"><FakeQr value={item.id}/></div>
