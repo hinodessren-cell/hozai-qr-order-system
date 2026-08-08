@@ -84,7 +84,7 @@ export function TepraPrintManager({ allItems, queuedItems, onSelectedPrinted }: 
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = `tepra-sr970-${new Date().toISOString().slice(0, 10)}.csv`; anchor.click(); URL.revokeObjectURL(url);
   };
   return <div className="tepraManager">
-    <div className="tepraIntro"><div><b>テプラ印刷（KING JIM SR970）</b><span>36mmテープ用。印刷画面でプリンター「SR970」を選択してください。</span></div><strong>{targets.length}<small>品</small></strong></div>
+    <div className="tepraIntro"><div><b>テプラ印刷（KING JIM SR970）</b><span>1商品につき1枚ずつ印刷します。SR970を選択し、36mmテープ・自動カットONにしてください。</span></div><strong>{targets.length}<small>品</small></strong></div>
     <div className="tepraScopes" role="radiogroup" aria-label="テプラ印刷対象">
       <label><input type="radio" checked={scope === "all"} onChange={() => setScope("all")}/>全商品 <b>{allItems.length}</b></label>
       <label><input type="radio" checked={scope === "selected"} onChange={() => setScope("selected")}/>選択商品のみ <b>{queuedItems.length}</b></label>
