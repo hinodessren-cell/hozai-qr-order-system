@@ -43,10 +43,11 @@ export function getItemPrintFlag(item: TepraItem) {
 
 function csvCell(value: unknown) { return `"${String(value ?? "").replace(/"/g, '""')}"`; }
 
-export function TepraPrintManager({ allItems, queuedItems, onSelectedPrinted }: { allItems: TepraItem[]; queuedItems: TepraItem[]; onSelectedPrinted: () => void }) {
+export function TepraPrintManager({ allItems, queuedItems, onSelectedPrinted }: { allItems: TepraItem[]; queuedItems: TepraItem[]; onSelectedPrinted: (id: string) => void }) {
   const [scope, setScope] = useState<"all" | "selected" | "new" | "updated">("selected");
   const [settings, setSettings] = useState<TepraSettings>(defaultSettings);
   const [ledgerVersion, setLedgerVersion] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [printJob, setPrintJob] = useState<{ items: TepraItem[]; qr: Record<string, string> } | null>(null);
   useEffect(() => {
     try { setSettings({ ...defaultSettings, ...JSON.parse(window.localStorage.getItem(SETTINGS_KEY) ?? "{}") }); } catch { setSettings(defaultSettings); }
@@ -56,6 +57,9 @@ export function TepraPrintManager({ allItems, queuedItems, onSelectedPrinted }: 
   const newItems = useMemo(() => allItems.filter((item) => !ledger[item.id]?.tepra), [allItems, ledger]);
   const updatedItems = useMemo(() => allItems.filter((item) => ledger[item.id]?.tepra && ledger[item.id]?.tepra?.signature !== signature(item)), [allItems, ledger]);
   const targets = scope === "all" ? allItems : scope === "selected" ? queuedItems : scope === "new" ? newItems : updatedItems;
+  const safeIndex = Math.min(currentIndex, Math.max(0, targets.length - 1));
+  const currentTarget = targets[safeIndex];
+  useEffect(() => { setCurrentIndex(0); }, [scope]);
   const saveSettings = (next: TepraSettings) => setSettings(next);
   const updateOrder = (key: FieldKey, direction: -1 | 1) => {
     const order = [...settings.order]; const index = order.indexOf(key); const nextIndex = index + direction;
@@ -63,16 +67,19 @@ export function TepraPrintManager({ allItems, queuedItems, onSelectedPrinted }: 
     [order[index], order[nextIndex]] = [order[nextIndex], order[index]]; saveSettings({ ...settings, order });
   };
   const preparePrint = async () => {
-    if (targets.length === 0) { window.alert("この条件で印刷する商品がありません。"); return; }
-    const qrEntries = await Promise.all(targets.map(async (item) => [item.id, await QRCode.toDataURL(item.id, { errorCorrectionLevel: "H", margin: 1, width: 512 })] as const));
-    setPrintJob({ items: targets, qr: Object.fromEntries(qrEntries) });
+    if (!currentTarget) { window.alert("この条件で印刷する商品がありません。"); return; }
+    const qr = await QRCode.toDataURL(currentTarget.id, { errorCorrectionLevel: "H", margin: 1, width: 512 });
+    setPrintJob({ items: [currentTarget], qr: { [currentTarget.id]: qr } });
     await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     const pageStyle = document.createElement("style"); pageStyle.id = "tepra-page-style";
     pageStyle.textContent = `@media print{@page{size:${settings.labelLength}mm ${settings.tapeWidth}mm;margin:0}}`;
     document.head.appendChild(pageStyle); document.body.classList.add("tepraPrinting");
     await document.fonts?.ready; window.print(); document.body.classList.remove("tepraPrinting"); pageStyle.remove();
     const completed = window.confirm("テプラ印刷は完了しましたか？\n\n［OK］印刷済みフラグを付ける\n［キャンセル］未印刷のまま残す");
-    if (completed) { markItemsPrinted(targets, "tepra"); setLedgerVersion((value) => value + 1); if (scope === "selected") onSelectedPrinted(); }
+    if (completed) {
+      markItemsPrinted([currentTarget], "tepra"); setLedgerVersion((value) => value + 1);
+      if (scope === "selected") onSelectedPrinted(currentTarget.id); else setCurrentIndex((value) => Math.min(value + 1, Math.max(0, targets.length - 1)));
+    }
     setPrintJob(null);
   };
   const exportCsv = () => {
@@ -100,8 +107,9 @@ export function TepraPrintManager({ allItems, queuedItems, onSelectedPrinted }: 
       <label>余白<input type="number" min="0" max="5" step=".5" value={settings.margin} onChange={(event) => saveSettings({ ...settings, margin: Number(event.target.value) })}/><span>mm</span></label>
       <label>QR配置<select value={settings.qrSide} onChange={(event) => saveSettings({ ...settings, qrSide: event.target.value as "left" | "right" })}><option value="left">左</option><option value="right">右</option></select></label>
     </div><div className="tepraFieldSettings">{settings.order.map((key, index) => <div key={key}><label><input type="checkbox" checked={settings.fields[key]} onChange={(event) => saveSettings({ ...settings, fields: { ...settings.fields, [key]: event.target.checked } })}/>{fieldLabels[key]}</label><button disabled={index === 0} onClick={() => updateOrder(key, -1)}>↑</button><button disabled={index === settings.order.length - 1} onClick={() => updateOrder(key, 1)}>↓</button></div>)}</div></details>
-    <div className="tepraActions"><button className="outline" onClick={exportCsv}>TEPRA Creator用CSV</button><button className="primary" onClick={() => void preparePrint()}>SR970で{targets.length}品を印刷</button></div>
-    <div className="tepraTargetList">{targets.slice(0, 100).map((item) => <div key={item.id}><span className={`printFlag flag-${getItemPrintFlag(item)}`}>{getItemPrintFlag(item)}</span><b>{item.name}</b><small>{item.code}</small></div>)}{targets.length > 100 && <p>ほか{targets.length - 100}品</p>}</div>
+    {currentTarget && <div className="tepraCurrentItem"><button className="outline" disabled={safeIndex === 0} onClick={() => setCurrentIndex((value) => Math.max(0, value - 1))}>← 前の商品</button><div><small>今回印刷する看板　{safeIndex + 1} / {targets.length}</small><b>{currentTarget.name}</b><span>{currentTarget.code}</span></div><button className="outline" disabled={safeIndex >= targets.length - 1} onClick={() => setCurrentIndex((value) => Math.min(targets.length - 1, value + 1))}>次の商品 →</button></div>}
+    <div className="tepraActions"><button className="outline" onClick={exportCsv}>TEPRA Creator用CSV</button><button className="primary" disabled={!currentTarget} onClick={() => void preparePrint()}>現在の1品をSR970で印刷</button></div>
+    <div className="tepraTargetList">{targets.slice(0, 100).map((item, index) => <button type="button" key={item.id} className={index === safeIndex ? "current" : ""} onClick={() => setCurrentIndex(index)}><span className={`printFlag flag-${getItemPrintFlag(item)}`}>{getItemPrintFlag(item)}</span><b>{item.name}</b><small>{item.code}</small></button>)}{targets.length > 100 && <p>ほか{targets.length - 100}品</p>}</div>
     {printJob && createPortal(<div className="tepraPrintOutput">{printJob.items.map((item) => <TepraLabel key={item.id} item={item} qr={printJob.qr[item.id]} settings={settings}/>)}</div>, document.body)}
   </div>;
 }
