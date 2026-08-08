@@ -13,7 +13,7 @@ type TepraSettings = { tapeWidth: 18 | 24 | 36; labelLength: number; qrSize: num
 
 const LEDGER_KEY = "item-print-ledger-v1";
 const SETTINGS_KEY = "tepra-layout-settings-v1";
-const defaultSettings: TepraSettings = { tapeWidth: 36, labelLength: 100, qrSize: 28, nameSize: 13, detailSize: 9, margin: 2, qrSide: "left", fields: { name: true, code: true, orderPointLot: true, unit: true, memo: true }, order: ["name", "code", "orderPointLot", "unit", "memo"] };
+const defaultSettings: TepraSettings = { tapeWidth: 36, labelLength: 100, qrSize: 25, nameSize: 13, detailSize: 9, margin: 3, qrSide: "left", fields: { name: true, code: true, orderPointLot: true, unit: true, memo: true }, order: ["name", "code", "orderPointLot", "unit", "memo"] };
 const fieldLabels: Record<FieldKey, string> = { name: "品名", code: "品番", orderPointLot: "発注点・ロット", unit: "単位", memo: "備考" };
 
 function readLedger(): PrintLedger {
@@ -84,7 +84,7 @@ export function TepraPrintManager({ allItems, queuedItems, onSelectedPrinted }: 
     const anchor = document.createElement("a"); anchor.href = url; anchor.download = `tepra-sr970-${new Date().toISOString().slice(0, 10)}.csv`; anchor.click(); URL.revokeObjectURL(url);
   };
   return <div className="tepraManager">
-    <div className="tepraIntro"><div><b>テプラ印刷（KING JIM SR970）</b><span>1商品につき1枚ずつ印刷します。SR970を選択し、36mmテープ・自動カットONにしてください。</span></div><strong>{targets.length}<small>品</small></strong></div>
+    <div className="tepraIntro"><div><b>テプラ印刷（KING JIM SR970）</b><span>36mmテープの印字可能範囲（約27mm）の中央に看板を配置します。自動カットONにしてください。</span></div><strong>{targets.length}<small>品</small></strong></div>
     <div className="tepraScopes" role="radiogroup" aria-label="テプラ印刷対象">
       <label><input type="radio" checked={scope === "all"} onChange={() => setScope("all")}/>全商品 <b>{allItems.length}</b></label>
       <label><input type="radio" checked={scope === "selected"} onChange={() => setScope("selected")}/>選択商品のみ <b>{queuedItems.length}</b></label>
@@ -94,7 +94,7 @@ export function TepraPrintManager({ allItems, queuedItems, onSelectedPrinted }: 
     <details className="tepraSettings"><summary>レイアウト設定</summary><div className="tepraSettingGrid">
       <label>テープ幅<select value={settings.tapeWidth} onChange={(event) => saveSettings({ ...settings, tapeWidth: Number(event.target.value) as TepraSettings["tapeWidth"] })}><option value="36">36mm（SR970）</option><option value="24">24mm</option><option value="18">18mm</option></select></label>
       <label>ラベル長さ<input type="number" min="45" max="200" value={settings.labelLength} onChange={(event) => saveSettings({ ...settings, labelLength: Number(event.target.value) || 100 })}/><span>mm</span></label>
-      <label>QRサイズ<input type="number" min="12" max="32" value={settings.qrSize} onChange={(event) => saveSettings({ ...settings, qrSize: Number(event.target.value) || 28 })}/><span>mm</span></label>
+      <label>QRサイズ<input type="number" min="12" max="26" value={Math.min(settings.qrSize, 26)} onChange={(event) => saveSettings({ ...settings, qrSize: Number(event.target.value) || 25 })}/><span>mm</span></label>
       <label>品名サイズ<input type="number" min="7" max="22" value={settings.nameSize} onChange={(event) => saveSettings({ ...settings, nameSize: Number(event.target.value) || 13 })}/><span>pt</span></label>
       <label>詳細サイズ<input type="number" min="6" max="16" value={settings.detailSize} onChange={(event) => saveSettings({ ...settings, detailSize: Number(event.target.value) || 9 })}/><span>pt</span></label>
       <label>余白<input type="number" min="0" max="5" step=".5" value={settings.margin} onChange={(event) => saveSettings({ ...settings, margin: Number(event.target.value) })}/><span>mm</span></label>
@@ -107,7 +107,10 @@ export function TepraPrintManager({ allItems, queuedItems, onSelectedPrinted }: 
 }
 
 function TepraLabel({ item, qr, settings }: { item: TepraItem; qr: string; settings: TepraSettings }) {
-  return <article className={`tepraLabel qr-${settings.qrSide}`} style={{ "--tepra-width": `${settings.labelLength}mm`, "--tepra-height": `${settings.tapeWidth}mm`, "--tepra-qr": `${settings.qrSize}mm`, "--tepra-name": `${settings.nameSize}pt`, "--tepra-detail": `${settings.detailSize}pt`, "--tepra-margin": `${settings.margin}mm` } as React.CSSProperties}>
+  const verticalMargin = settings.tapeWidth === 36 ? 4.7 : settings.tapeWidth === 24 ? 2.1 : 1.6;
+  const printableHeight = settings.tapeWidth - verticalMargin * 2;
+  const qrSize = Math.min(settings.qrSize, printableHeight - 1);
+  return <article className={`tepraLabel qr-${settings.qrSide}`} style={{ "--tepra-width": `${settings.labelLength}mm`, "--tepra-height": `${settings.tapeWidth}mm`, "--tepra-qr": `${qrSize}mm`, "--tepra-name": `${settings.nameSize}pt`, "--tepra-detail": `${settings.detailSize}pt`, "--tepra-margin": `${Math.max(3, settings.margin)}mm`, "--tepra-vmargin": `${verticalMargin}mm` } as React.CSSProperties}>
     <img src={qr} alt=""/><div className="tepraFields">{settings.order.map((key) => settings.fields[key] ? <TepraField key={key} item={item} field={key}/> : null)}</div>
   </article>;
 }
